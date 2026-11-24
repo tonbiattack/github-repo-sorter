@@ -1,0 +1,180 @@
+:root {
+  color-scheme: light dark;
+  --fg: #1f2328;
+  --muted: #59636e;
+  --border: #d1d9e0;
+  --bg: #ffffff;
+  --bg-subtle: #f6f8fa;
+  --accent: #0969da;
+  --danger: #d1242f;
+  --ok: #1a7f37;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --fg: #e6edf3;
+    --muted: #9198a1;
+    --border: #3d444d;
+    --bg: #0d1117;
+    --bg-subtle: #151b23;
+    --accent: #4493f8;
+    --danger: #f85149;
+    --ok: #3fb950;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans JP', 'Hiragino Sans', Meiryo,
+    sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.page {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 32px 20px 48px;
+}
+
+.page__head h1 {
+  margin: 0 0 4px;
+  font-size: 24px;
+}
+
+.lead {
+  margin: 0;
+  color: var(--muted);
+}
+
+.card {
+  margin-top: 24px;
+  padding: 16px 20px 20px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+}
+
+.card h2 {
+  margin: 0 0 8px;
+  font-size: 16px;
+}
+
+.hint,
+.notes {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.notes {
+  margin: 12px 0 0;
+  padding-left: 20px;
+}
+
+.notes li + li {
+  margin-top: 6px;
+}
+
+code {
+  padding: 0 4px;
+  border-radius: 4px;
+  background: var(--bg-subtle);
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 12px;
+}
+
+.status {
+  margin: 12px 0;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-subtle);
+  font-size: 13px;
+}
+
+.status[data-tone='ok'] {
+  border-color: var(--ok);
+  color: var(--ok);
+}
+
+.status[data-tone='error'] {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.field__label {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.input {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--fg);
+  font: inherit;
+  font-size: 13px;
+}
+
+.input:focus-visible,
+.button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.button {
+  padding: 6px 14px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-subtle);
+  color: var(--fg);
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.button:hover:not(:disabled) {
+  filter: brightness(0.97);
+}
+
+.button:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.button--primary {
+  border-color: transparent;
+  background: var(--accent);
+  color: #ffffff;
+}
+
+.button--subtle {
+  background: transparent;
+}

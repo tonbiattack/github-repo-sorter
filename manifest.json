@@ -1,0 +1,28 @@
+{
+  "manifest_version": 3,
+  "name": "GitHub Repo Sorter",
+  "version": "0.1.0",
+  "description": "GitHub のリポジトリ一覧を、作成・Fork・Push を統合した最近の活動順に並べ替えます。",
+  "minimum_chrome_version": "116",
+  "permissions": ["storage"],
+  "host_permissions": ["https://api.github.com/*"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://github.com/*"],
+      "js": ["content.js"],
+      "css": ["content.css"],
+      "run_at": "document_idle",
+      "all_frames": false
+    }
+  ],
+  "action": {
+    "default_title": "GitHub Repo Sorter の設定を開く"
+  },
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": true
+  }
+}

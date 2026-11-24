@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>GitHub Repo Sorter の設定</title>
+    <link rel="stylesheet" href="options.css" />
+  </head>
+  <body>
+    <main class="page">
+      <header class="page__head">
+        <h1>GitHub Repo Sorter</h1>
+        <p class="lead">
+          GitHub のリポジトリ一覧を、作成・Fork・Push を統合した最近の活動順に並べ替える Chrome 拡張です。
+        </p>
+      </header>
+
+      <section class="card">
+        <h2>アクセストークン（任意）</h2>
+        <p class="hint">
+          非公開リポジトリも一覧に含める場合に登録します。未登録の場合は公開リポジトリのみを取得します。
+        </p>
+
+        <p id="status" class="status" role="status" aria-live="polite">確認中…</p>
+
+        <form id="token-form" class="form">
+          <label class="field">
+            <span class="field__label">読み取り専用のアクセストークン</span>
+            <input
+              id="token"
+              class="input"
+              type="password"
+              autocomplete="off"
+              spellcheck="false"
+              placeholder="ghp_… または github_pat_…"
+            />
+          </label>
+          <div class="actions">
+            <button id="save" class="button button--primary" type="submit">保存して検証</button>
+            <button id="clear" class="button" type="button">トークンを解除</button>
+            <button id="clear-cache" class="button button--subtle" type="button">キャッシュを消去</button>
+          </div>
+        </form>
+
+        <ul class="notes">
+          <li>
+            必要な権限: クラシックトークンは <code>repo</code> スコープ、fine-grained
+            トークンは対象リポジトリの <code>Metadata: Read</code> です。
+          </li>
+          <li>
+            トークンはブラウザのセッション領域（<code>chrome.storage.session</code>）にのみ保存し、ページには渡しません。ブラウザを終了すると消えます。
+          </li>
+          <li>
+            外部サーバーへの送信は行いません。通信先は <code>api.github.com</code> のみです。
+          </li>
+        </ul>
+      </section>
+
+      <section class="card">
+        <h2>使い方</h2>
+        <ol class="notes">
+          <li>
+            GitHub のプロフィールで「Repositories」タブを開きます（<code>https://github.com/&lt;owner&gt;?tab=repositories</code>）。
+          </li>
+          <li>
+            一覧の上に並び替えパネルが表示されます。「標準表示」を押すと GitHub 標準の一覧に戻せます。
+          </li>
+          <li>並び替え・絞り込みは owner ごとに保存され、次回訪問時に復元されます。</li>
+        </ol>
+      </section>
+    </main>
+    <script src="options.js"></script>
+  </body>
+</html>
