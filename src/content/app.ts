@@ -46,6 +46,7 @@ export class SorterApp {
   private generation = 0;
   private requestId: string | null = null;
   private observer: MutationObserver | null = null;
+  private mountedAsFallback = false;
   private routeTimer: number | null = null;
   private searchTimer: number | null = null;
   private started = false;
@@ -55,7 +56,6 @@ export class SorterApp {
     this.started = true;
 
     const boot = (): void => {
-      this.installObserver();
       this.installRuntimeListener();
       this.syncRoute();
     };
@@ -108,8 +108,19 @@ export class SorterApp {
 
     if (sameOwner) {
       // Turbo may have replaced the native list while keeping the URL.
+      if (!this.native || !this.native.list.isConnected) {
+        this.native = locateNativeList(document);
+      }
+      if (this.native && this.refs && this.mountedAsFallback && this.refs.root.isConnected) {
+        const parent = this.native.anchor.parentElement;
+        if (parent) {
+          parent.insertBefore(this.refs.root, this.native.anchor);
+          this.mountedAsFallback = false;
+        }
+      }
       if (this.refs && !this.refs.root.isConnected) {
         ensurePanelMounted(this.refs.root, this.native);
+        this.mountedAsFallback = this.native === null;
       }
       this.updateNativeVisibility();
       return;
@@ -138,7 +149,9 @@ export class SorterApp {
     const panel = createPanel(owner);
     this.native = native;
     this.refs = panel;
+    this.mountedAsFallback = native === null;
     ensurePanelMounted(panel.root, native);
+    this.installObserver();
     this.bindEvents(panel);
     this.render();
 
@@ -405,6 +418,10 @@ export class SorterApp {
   }
 
   private teardown(): void {
+    if (this.observer) {
+      this.observer.disconnect();
+      this.observer = null;
+    }
     if (this.requestId !== null) {
       void this.send({ channel: CHANNEL, type: 'cancel', requestId: this.requestId });
       this.requestId = null;
