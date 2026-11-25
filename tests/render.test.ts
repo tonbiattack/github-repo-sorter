@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it } from 'vitest';
-import { addSortItems, nativeTypeForFilter, scopeFromNative, typeFilterFromNative } from '../src/content/dom';
+import { addSortItems, nativeTypeForFilter, scopeForType, typeFilterFromNative } from '../src/content/dom';
 import { createRepoRow, languageColor, renderListContent } from '../src/content/render';
 import type { UiState } from '../src/content/render';
 import { NATIVE_HIDDEN_ATTR, locateNativeList, removeStalePanels, setNativeHidden } from '../src/content/native';
@@ -47,10 +47,10 @@ describe('menu integration', () => {
     expect(document.querySelector('a[href="/new"]')).not.toBeNull();
   });
   it('maps only supported GitHub Type values', () => {
-    expect(scopeFromNative('')).toBe('all');
-    expect(scopeFromNative('fork')).toBe('forks');
-    expect(scopeFromNative('source')).toBe('non-forks');
-    expect(scopeFromNative('archived')).toBeNull();
+    expect(scopeForType('all')).toBe('all');
+    expect(scopeForType('forks')).toBe('forks');
+    expect(scopeForType('non-forks')).toBe('non-forks');
+    expect(scopeForType('archived')).toBe('all');
   });
   it('maps every API-backed Type value and rejects the rest', () => {
     expect(typeFilterFromNative('')).toBe('all');
@@ -84,7 +84,7 @@ describe('repository rows', () => {
   });
   it('shows missing timestamps explicitly', () => {
     const row = createRepoRow(makeRepo(1, { pushedAt: null }), 'pushed');
-    expect(row.textContent).toContain('Push: 日時なし');
+    expect(row.textContent).toContain('Pushed: no date');
   });
 
   it('colours known languages and falls back for unknown ones', () => {
@@ -113,33 +113,33 @@ describe('list rendering', () => {
   it('filters all results before paginating and reports the access context', () => {
     const repos = Array.from({ length: 101 }, (_, index) => makeRepo(index + 1, { name: `repo-${index + 1}` }));
     const content = renderListContent(makeState({ data: makeData({ repos }), query: 'repo-1' }));
-    expect(content.status.textContent).toContain('公開のみ');
-    expect(content.status.textContent).toContain('表示13件');
+    expect(content.status.textContent).toContain('Public only');
+    expect(content.status.textContent).toContain('13 shown');
     expect(content.body?.querySelectorAll('.grs-repo')).toHaveLength(13);
   });
   it('keeps native list visible on loading or error', () => {
     expect(renderListContent(makeState({ loading: true, progress: { page: 2, received: 150 } })).body).toBeNull();
     const error = renderListContent(makeState({ error: { kind: 'auth', message: 'bad token' } }));
     expect(error.body).toBeNull();
-    expect(error.status.textContent).toContain('GitHub標準一覧');
+    expect(error.status.textContent).toContain("GitHub's standard list");
     expect(error.status.querySelector('[data-grs-action="public-fallback"]')).not.toBeNull();
   });
   it('warns even when partial results have no matching rows', () => {
     const content = renderListContent(makeState({ query: 'missing', data: makeData({ partial: true, error: { kind: 'http', message: 'page failed' } }) }));
-    expect(content.status.textContent).toContain('一部のみ');
-    expect(content.body?.textContent).toContain('条件に一致');
+    expect(content.status.textContent).toContain('partial');
+    expect(content.body?.textContent).toContain('No repositories match');
   });
   it('renders 30 rows and a pager after complete fetch', () => {
     const repos = Array.from({ length: 61 }, (_, index) => makeRepo(index + 1));
     const content = renderListContent(makeState({ data: makeData({ repos }), page: 2 }));
     expect(content.body?.querySelectorAll('.grs-repo')).toHaveLength(30);
-    expect(content.body?.querySelector('.grs-pager__status')?.textContent).toContain('31–60 / 61件');
+    expect(content.body?.querySelector('.grs-pager__status')?.textContent).toContain('31–60 of 61');
   });
 
   it('points at the standard listing instead of faking GitHub-only actions', () => {
     const content = renderListContent(makeState());
     const hint = content.body?.querySelector('.grs-hint');
-    expect(hint?.textContent).toContain('Star ボタン');
+    expect(hint?.textContent).toContain('Star buttons');
     expect(hint?.querySelector('[data-grs-action="standard"]')).not.toBeNull();
     // No fake Star button or fork-parent link is rendered.
     expect(content.body?.querySelector('[data-grs-action="star"], .grs-repo__fork-parent')).toBeNull();

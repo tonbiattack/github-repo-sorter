@@ -9,6 +9,7 @@ import type {
   HandlerResponse,
   Request,
 } from '../shared/protocol';
+import { t } from '../shared/i18n';
 import { sanitizeSettings } from '../shared/settings';
 import type { SorterSettings } from '../shared/settings';
 import type { AuthMode, FetchErrorInfo } from '../shared/types';
@@ -59,8 +60,8 @@ function operation(): HandlerResponse {
 
 export function toErrorInfo(error: unknown): FetchErrorInfo {
   if (error instanceof ApiError) return error.info;
-  if (error instanceof AbortError) return { kind: 'aborted', message: '取得をキャンセルしました。' };
-  return { kind: 'unknown', message: '予期しないエラーが発生しました。' };
+  if (error instanceof AbortError) return { kind: 'aborted', message: t('apiAborted') };
+  return { kind: 'unknown', message: t('errUnexpectedResponse') };
 }
 
 /**
@@ -108,23 +109,23 @@ export function createMessageHandler(deps: HandlerDeps): MessageHandler {
   async function handleFetch(request: FetchRequest, sender: SenderInfo): Promise<HandlerResponse> {
     const senderOwner = contentSenderOwner(sender);
     if (senderOwner === null) {
-      return fail({ kind: 'forbidden', message: '送信元のページを検証できませんでした。' });
+      return fail({ kind: 'forbidden', message: t('forbiddenSender') });
     }
     if (senderOwner.toLowerCase() !== request.owner.toLowerCase()) {
-      return fail({ kind: 'forbidden', message: 'リクエストのオーナーがページと一致しません。' });
+      return fail({ kind: 'forbidden', message: t('forbiddenOwner') });
     }
 
     await authMutations;
     const revision = authRevision;
     const token = await deps.tokens.read();
-    if (revision !== authRevision) return fail({ kind: 'aborted', message: '認証状態が変更されました。' });
+    if (revision !== authRevision) return fail({ kind: 'aborted', message: t('errAuthChanged') });
     const mode: AuthMode =
       request.authMode === 'public' ? 'public' : token === null ? 'public' : 'authenticated';
 
     if (request.authMode === 'authenticated' && token === null) {
       return fail({
         kind: 'auth',
-        message: 'アクセストークンが設定されていません。拡張機能の設定から登録してください。',
+        message: t('authTokenMissing'),
       });
     }
 
@@ -139,12 +140,12 @@ export function createMessageHandler(deps: HandlerDeps): MessageHandler {
       if (login.toLowerCase() !== request.owner.toLowerCase()) {
         return fail({
           kind: 'owner-mismatch',
-          message: `認証中のアカウント（${login}）はこのページのオーナー（${request.owner}）と一致しません。公開一覧として取得するか、トークンを解除してください。`,
+          message: t('ownerMismatch', login, request.owner),
         });
       }
     }
 
-    if (revision !== authRevision) return fail({ kind: 'aborted', message: '認証状態が変更されました。' });
+    if (revision !== authRevision) return fail({ kind: 'aborted', message: t('errAuthChanged') });
     const key = repoCacheKey(request.owner, { mode, login });
     if (request.force) deps.cache.invalidate(key);
 
@@ -256,13 +257,13 @@ export function createMessageHandler(deps: HandlerDeps): MessageHandler {
     } catch (error) {
       return fail(toErrorInfo(error));
     }
-    if (revision !== authRevision) return fail({ kind: 'aborted', message: '認証状態が変更されました。' });
+    if (revision !== authRevision) return fail({ kind: 'aborted', message: t('errAuthChanged') });
     authRevision += 1;
     for (const controller of controllers.values()) controller.abort();
     controllers.clear();
     inFlight.clear();
     await deps.tokens.write(token, { persist });
-    if (revision + 1 !== authRevision) return fail({ kind: 'aborted', message: '認証状態が変更されました。' });
+    if (revision + 1 !== authRevision) return fail({ kind: 'aborted', message: t('errAuthChanged') });
     identities.clear();
     identities.set(token, { viewer, storedAt: deps.now() });
     deps.cache.clear();
@@ -305,7 +306,7 @@ export function createMessageHandler(deps: HandlerDeps): MessageHandler {
 
       case 'settings-get': {
         if (!requireContentOwner(request.owner)) {
-          return fail({ kind: 'forbidden', message: '設定の取得元を検証できませんでした。' });
+          return fail({ kind: 'forbidden', message: t('forbiddenSettingsRead') });
         }
         const settings = await deps.settings.read(request.owner);
         return { ok: true, kind: 'settings', data: settings };
@@ -313,35 +314,35 @@ export function createMessageHandler(deps: HandlerDeps): MessageHandler {
 
       case 'settings-set': {
         if (!requireContentOwner(request.owner)) {
-          return fail({ kind: 'forbidden', message: '設定の保存元を検証できませんでした。' });
+          return fail({ kind: 'forbidden', message: t('forbiddenSettingsWrite') });
         }
         return handleSettingsSet(request.owner, request.settings);
       }
 
       case 'auth-status': {
         if (!requireExtension()) {
-          return fail({ kind: 'forbidden', message: '認証状態を取得する権限がありません。' });
+          return fail({ kind: 'forbidden', message: t('forbiddenAuthStatus') });
         }
         return handleAuthStatus();
       }
 
       case 'auth-set': {
         if (!requireExtension()) {
-          return fail({ kind: 'forbidden', message: '認証情報を設定する権限がありません。' });
+          return fail({ kind: 'forbidden', message: t('forbiddenAuthSet') });
         }
         return serializeAuth(() => handleAuthSet(request.token, request.persist === true));
       }
 
       case 'auth-clear': {
         if (!requireExtension()) {
-          return fail({ kind: 'forbidden', message: '認証情報を解除する権限がありません。' });
+          return fail({ kind: 'forbidden', message: t('forbiddenAuthClear') });
         }
         return serializeAuth(handleAuthClear);
       }
 
       case 'cache-clear': {
         if (!requireExtension()) {
-          return fail({ kind: 'forbidden', message: 'キャッシュを消去する権限がありません。' });
+          return fail({ kind: 'forbidden', message: t('forbiddenCacheClear') });
         }
         deps.cache.clear();
         return operation();
@@ -349,7 +350,7 @@ export function createMessageHandler(deps: HandlerDeps): MessageHandler {
 
       case 'open-options': {
         if (senderOwner === null) {
-          return fail({ kind: 'forbidden', message: '送信元のページを検証できませんでした。' });
+          return fail({ kind: 'forbidden', message: t('forbiddenSender') });
         }
         deps.openOptions?.();
         return operation();

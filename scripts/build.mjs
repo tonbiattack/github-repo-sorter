@@ -42,6 +42,8 @@ async function copyStatic() {
   for (const icon of iconFiles) {
     await cp(path.join(root, 'icons', icon), path.join(outDir, 'icons', icon));
   }
+  // Chrome resolves __MSG_*__ from _locales/<display language>.
+  await cp(path.join(root, '_locales'), path.join(outDir, '_locales'), { recursive: true });
   // Keep the manifest version in sync with package.json.
   const manifestPath = path.join(outDir, 'manifest.json');
   const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));

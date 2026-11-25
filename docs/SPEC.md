@@ -1,4 +1,4 @@
-# GitHub Repo Sorter 仕様書 v0.3
+# GitHub Repo Sorter 仕様書 v0.4
 
 ## 目的
 GitHubのリポジトリ一覧で、新規作成・Fork・Pushを同じ活動として扱い、最近触ったリポジトリを素早く見つける。独立した軽量Chrome拡張とし、ローカルサーバー不要。
@@ -12,6 +12,8 @@ Chrome/Edge (Manifest V3)。初期対象は github.com/{owner}?tab=repositories�
 - APIから取得可能な名前、リンク、説明、言語（GitHubの言語色）、Star・Fork数、公開範囲、Fork/Archived/Template/Mirror表示、選択した日時を表示。取得できないGitHub標準操作（Starボタン、Fork元リンク、グラフ）は偽装せず、標準表示への切替を案内する。GitHub標準の外観・ダークモードに馴染ませる。
 - 設定（ソート・Type・Language・Visibility・標準表示）を owner 単位で chrome.storage.local に保存。標準表示への復帰、手動再取得、取得時刻・公開/認証済みの範囲を表示。
 - 初回取得中・空・エラー・部分取得を明示。元のGitHub一覧は壊さず、取得中・失敗時は標準一覧を利用可能にする。DOM構造が合わない場合は拡張を挿入せず標準表示とする。
+- UIはChrome標準の i18n（`_locales/en`、`_locales/ja`、`default_locale: en`）でブラウザの表示言語に追従し、日本語以外は英語へフォールバックする。日時・数値は表示言語のロケールで整形し、ソート比較はUTCのまま変更しない。リポジトリ名・説明・ユーザー入力は翻訳しない。権限追加と外部翻訳サービスは使わない。
+- ストア公開前はソースからの手動導入を案内し、公開後に正式なストアURLへ差し替える。未公開リンクやバッジは載せない。
 
 ## 認証・トークン保存
 既定は chrome.storage.session（ブラウザ終了で消去）。利用者が明示的にオプトインした場合のみ chrome.storage.local にも保存し、平文保存のリスクを設定画面で説明する。両領域とも TRUSTED_CONTEXTS に制限し、content script へは渡さない。解除時は両方のコピーを削除する。推奨は fine-grained の Metadata: Read で、クラシック `repo` スコープを読み取り専用と表現しない。
@@ -38,6 +40,7 @@ Chrome Web Store で公開できる状態を目標とする。アイコン、プ
 - 500件のローカルソートは通常PCで100ms以内を目標（通信時間除外）。
 - 独自ソート中も検索・Type・Language・Visibilityが全件に対して機能し、未対応条件では標準表示へ戻る。
 - 配布ZIPに実行時不要なファイルが含まれない。
+- 英語・日本語・未対応言語の3通りでUIを確認し、英語UIに日本語固定文言が残らない。ZIPに `_locales` が含まれる。
 
 ## 非対象
 一括clone、Fork操作、リポジトリ変更、常駐サーバー、他者の活動の追跡。Star操作に必要な書込権限の追加、非公開API・Cookie流用。

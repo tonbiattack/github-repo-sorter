@@ -1,8 +1,9 @@
 {
   "manifest_version": 3,
-  "name": "GitHub Repo Sorter",
-  "version": "0.2.0",
-  "description": "Sort GitHub repositories by recent activity, including creation, forks, and pushes, directly in GitHub.",
+  "name": "__MSG_extName__",
+  "version": "0.3.0",
+  "description": "__MSG_extDescription__",
+  "default_locale": "en",
   "minimum_chrome_version": "116",
   "icons": {
     "16": "icons/icon-16.png",
@@ -25,7 +26,7 @@
     }
   ],
   "action": {
-    "default_title": "GitHub Repo Sorter の設定を開く",
+    "default_title": "__MSG_actionTitle__",
     "default_icon": {
       "16": "icons/icon-16.png",
       "32": "icons/icon-32.png",

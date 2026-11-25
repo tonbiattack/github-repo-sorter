@@ -1,0 +1,365 @@
+{
+  "extName": {
+    "message": "GitHub Repo Sorter"
+  },
+  "extDescription": {
+    "message": "Sort GitHub repositories by recent activity, including creation, forks, and pushes, directly in GitHub."
+  },
+  "actionTitle": {
+    "message": "Open GitHub Repo Sorter options"
+  },
+  "sortActivity": {
+    "message": "Created · Forked · Pushed"
+  },
+  "sortCreated": {
+    "message": "Newest created"
+  },
+  "sortForked": {
+    "message": "Newest forked"
+  },
+  "sortPushed": {
+    "message": "Newest pushed"
+  },
+  "sortUpdated": {
+    "message": "Recently updated"
+  },
+  "sortActivityHint": {
+    "message": "Uses the newer of the creation and last push dates"
+  },
+  "sortCreatedHint": {
+    "message": "Sorts by the repository creation date"
+  },
+  "sortForkedHint": {
+    "message": "Sorts by the fork date; repositories that are not forks go last"
+  },
+  "sortPushedHint": {
+    "message": "Sorts by the last push date"
+  },
+  "sortUpdatedHint": {
+    "message": "Sorts by the metadata update date, including description edits"
+  },
+  "menuHeading": {
+    "message": "Repo Sorter"
+  },
+  "kindPush": {
+    "message": "Push"
+  },
+  "kindFork": {
+    "message": "Fork"
+  },
+  "kindCreate": {
+    "message": "Created"
+  },
+  "dateCreated": {
+    "message": "Created"
+  },
+  "dateForked": {
+    "message": "Forked"
+  },
+  "datePushed": {
+    "message": "Pushed"
+  },
+  "dateUpdated": {
+    "message": "Updated"
+  },
+  "dateNone": {
+    "message": "No date"
+  },
+  "dateWithLabel": {
+    "message": "$1: $2"
+  },
+  "dateMissing": {
+    "message": "$1: no date"
+  },
+  "statusLoading": {
+    "message": "Loading repositories… $1 Showing GitHub's standard list."
+  },
+  "statusLoadingIdle": {
+    "message": "Loading repositories… Showing GitHub's standard list."
+  },
+  "statusLoadingProgress": {
+    "message": "$1 items, page $2"
+  },
+  "statusLoadFailed": {
+    "message": "Could not load repositories: $1 Showing GitHub's standard list."
+  },
+  "scopeAuthenticated": {
+    "message": "Signed in as $1 (private included)"
+  },
+  "scopePublic": {
+    "message": "Public only"
+  },
+  "statusFetched": {
+    "message": "$1 fetched"
+  },
+  "statusShown": {
+    "message": "$1 shown"
+  },
+  "statusPartial": {
+    "message": "partial"
+  },
+  "statusFetchedAt": {
+    "message": "fetched $1"
+  },
+  "statusCached": {
+    "message": "cached"
+  },
+  "statusPartialNote": {
+    "message": "Showing partial results: $1"
+  },
+  "refresh": {
+    "message": "Refresh"
+  },
+  "retry": {
+    "message": "Retry"
+  },
+  "publicFallback": {
+    "message": "Load public list"
+  },
+  "openOptions": {
+    "message": "Settings"
+  },
+  "switchToStandard": {
+    "message": "Switch to standard view"
+  },
+  "emptyFiltered": {
+    "message": "No repositories match the current filters."
+  },
+  "ariaRepoList": {
+    "message": "Repository list sorted by Repo Sorter"
+  },
+  "pagerAria": {
+    "message": "Pagination"
+  },
+  "pagerPrev": {
+    "message": "Previous"
+  },
+  "pagerNext": {
+    "message": "Next"
+  },
+  "pagerStatus": {
+    "message": "$1–$2 of $3 ($4/$5 pages)"
+  },
+  "standardHint": {
+    "message": "Star buttons, fork parents and contribution graphs are only available in GitHub's standard view."
+  },
+  "starsAria": {
+    "message": "Stars: $1"
+  },
+  "starsCount": {
+    "message": "Stars $1"
+  },
+  "forksCount": {
+    "message": "Forks $1"
+  },
+  "forkedFromHint": {
+    "message": "Fork"
+  },
+  "errUnsupportedType": {
+    "message": "This Type is not available with Repo Sorter. Switch to All first."
+  },
+  "errNoResponse": {
+    "message": "The extension did not respond. Reload the extension and try again."
+  },
+  "errUnexpectedResponse": {
+    "message": "Received an unexpected response from the extension."
+  },
+  "errAuthChanged": {
+    "message": "The authentication state changed."
+  },
+  "apiAuthFailed": {
+    "message": "GitHub authentication failed. Check your access token."
+  },
+  "apiNotFound": {
+    "message": "Could not load the repository list (wrong owner name or no access)."
+  },
+  "apiRateLimited": {
+    "message": "The GitHub API rate limit was reached. Try again later."
+  },
+  "apiRateLimitedAt": {
+    "message": "The GitHub API rate limit was reached. Try again after $1."
+  },
+  "apiForbidden": {
+    "message": "The GitHub API denied the request. The token may lack permission."
+  },
+  "apiServerError": {
+    "message": "The GitHub API returned a temporary error ($1)."
+  },
+  "apiHttpError": {
+    "message": "The GitHub API returned $1."
+  },
+  "apiNetworkError": {
+    "message": "Could not reach the GitHub API. Check your network connection."
+  },
+  "apiMaxPages": {
+    "message": "Reached the page limit ($1 pages). Showing partial results."
+  },
+  "apiInvalidResponse": {
+    "message": "Could not read the GitHub API response."
+  },
+  "apiUnexpectedShape": {
+    "message": "The GitHub API returned an unexpected format."
+  },
+  "apiLinkRepeat": {
+    "message": "The GitHub API kept returning the same page URL, so loading stopped."
+  },
+  "apiLinkHost": {
+    "message": "The GitHub API returned a page URL on another host, so loading stopped."
+  },
+  "apiViewerRead": {
+    "message": "Could not read the authenticated user information."
+  },
+  "apiViewerMissing": {
+    "message": "Could not load the authenticated user information."
+  },
+  "apiAborted": {
+    "message": "The request was cancelled."
+  },
+  "forbiddenSender": {
+    "message": "Could not verify the page that sent the request."
+  },
+  "forbiddenOwner": {
+    "message": "The request owner does not match the page."
+  },
+  "authTokenMissing": {
+    "message": "No access token is configured. Add one in the extension options."
+  },
+  "ownerMismatch": {
+    "message": "The signed-in account ($1) does not match this page's owner ($2). Load the public list or remove the token."
+  },
+  "forbiddenSettingsRead": {
+    "message": "Could not verify where the settings request came from."
+  },
+  "forbiddenSettingsWrite": {
+    "message": "Could not verify where the settings update came from."
+  },
+  "forbiddenAuthStatus": {
+    "message": "Not allowed to read the authentication status."
+  },
+  "forbiddenAuthSet": {
+    "message": "Not allowed to set the token."
+  },
+  "forbiddenAuthClear": {
+    "message": "Not allowed to remove the token."
+  },
+  "forbiddenCacheClear": {
+    "message": "Not allowed to clear the cache."
+  },
+  "messageFailed": {
+    "message": "Failed to handle the request."
+  },
+  "optionsTitle": {
+    "message": "GitHub Repo Sorter settings"
+  },
+  "optionsHeading": {
+    "message": "GitHub Repo Sorter"
+  },
+  "optionsLead": {
+    "message": "Sort the repository list on a GitHub profile page by recent activity, treating creation, forks, and pushes as the same kind of activity."
+  },
+  "tokenHeading": {
+    "message": "Access token (optional)"
+  },
+  "tokenHint": {
+    "message": "Add a token to include your private repositories. Without one, only public repositories are loaded."
+  },
+  "statusChecking": {
+    "message": "Checking…"
+  },
+  "statusBackgroundUnavailable": {
+    "message": "Could not reach the background worker. Reload the extension."
+  },
+  "statusUnavailable": {
+    "message": "Could not read the authentication status: $1"
+  },
+  "statusConfigured": {
+    "message": "Configured: signed in as $1 ($2)."
+  },
+  "statusConfiguredNoUser": {
+    "message": "A token is configured, but the user information could not be loaded."
+  },
+  "statusNotConfigured": {
+    "message": "Not configured: only public repositories are loaded."
+  },
+  "storageSession": {
+    "message": "kept for this browser session"
+  },
+  "storagePersistent": {
+    "message": "kept across browser restarts"
+  },
+  "tokenLabel": {
+    "message": "Read-only access token"
+  },
+  "tokenPlaceholder": {
+    "message": "github_pat_… or ghp_…"
+  },
+  "persistLabel": {
+    "message": "Keep the token after a browser restart (stored as plain text in chrome.storage.local)"
+  },
+  "persistWarning": {
+    "message": "The token will be left on this device's disk in plain text. Leave this off on a shared computer or if device theft or malware is a concern. With it off, the token disappears when the browser closes."
+  },
+  "buttonSave": {
+    "message": "Save and verify"
+  },
+  "buttonClearToken": {
+    "message": "Remove token"
+  },
+  "buttonClearCache": {
+    "message": "Clear cache"
+  },
+  "tokenSectionNote1": {
+    "message": "A fine-grained token with only Metadata: Read on the target repositories is recommended. A classic token's repo scope is not read-only: it also grants write access."
+  },
+  "tokenSectionNote2": {
+    "message": "The token is never handed to content scripts. By default it is stored in chrome.storage.session, which is cleared when the browser closes."
+  },
+  "tokenSectionNote3": {
+    "message": "Nothing is sent to third-party servers. The only network destination is api.github.com."
+  },
+  "tokenSectionNote4": {
+    "message": "If authentication fails, or another account is signed in, the extension does not silently switch to the public list. It shows an error instead."
+  },
+  "usageHeading": {
+    "message": "How to use"
+  },
+  "usageStep1": {
+    "message": "Open the Repositories tab on a GitHub profile (https://github.com/<owner>?tab=repositories)."
+  },
+  "usageStep2": {
+    "message": "Pick an entry under \"Repo Sorter\" in GitHub's Sort menu. Choosing a standard entry returns to GitHub's own list."
+  },
+  "usageStep3": {
+    "message": "Use GitHub's own search box and Type, Language and Visibility menus; they filter the whole fetched set."
+  },
+  "usageStep4": {
+    "message": "Sort order and filters are saved per owner and restored on your next visit."
+  },
+  "tokenRequired": {
+    "message": "Enter a token."
+  },
+  "validating": {
+    "message": "Verifying the token…"
+  },
+  "saveFailedBackground": {
+    "message": "Could not save. Reload the extension."
+  },
+  "saveFailed": {
+    "message": "Could not save: $1"
+  },
+  "savedConfigured": {
+    "message": "Saved: signed in as $1 ($2)."
+  },
+  "clearFailed": {
+    "message": "Could not remove the token."
+  },
+  "cleared": {
+    "message": "Removed the token and its saved copy. Only public repositories will be loaded."
+  },
+  "cacheClearFailed": {
+    "message": "Could not clear the cache."
+  },
+  "cacheCleared": {
+    "message": "Cleared the in-memory cache."
+  }
+}

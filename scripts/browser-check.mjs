@@ -10,7 +10,47 @@ const dist = path.join(root, 'dist');
 const index = process.argv.indexOf('--owner');
 const owner = index >= 0 ? process.argv[index + 1] : 'tonbiattack';
 if (!/^[A-Za-z0-9-]+$/.test(owner)) throw new Error('invalid owner');
+const langIndex = process.argv.indexOf('--lang');
+const uiLanguage = langIndex >= 0 ? process.argv[langIndex + 1] : 'en';
+const probeOnly = process.argv.includes('--probe');
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/** Expected UI phrases per display language (unsupported languages fall back to English). */
+const L10N = {
+  en: {
+    sortLabel: 'Created · Forked · Pushed',
+    fetched: (n) => `${n} fetched`,
+    shown: (n) => `${n} shown`,
+    loadFailed: 'Could not load repositories',
+    mismatch: 'does not match',
+    authenticated: 'Signed in as',
+    publicOnly: 'Public only',
+    standardList: "GitHub's standard list",
+    loading: 'Loading repositories',
+    configured: 'Configured:',
+    cleared: 'Removed the token',
+    clearFailed: 'Could not remove the token',
+    pager31to60: /31.60 of/,
+  },
+  ja: {
+    sortLabel: '作成・Fork・Push順',
+    fetched: (n) => `取得${n}件`,
+    shown: (n) => `表示${n}件`,
+    loadFailed: '取得できませんでした',
+    mismatch: '一致しません',
+    authenticated: '認証済み',
+    publicOnly: '公開のみ',
+    standardList: 'GitHub標準一覧',
+    loading: '取得中',
+    configured: '設定済み',
+    cleared: '解除しました',
+    clearFailed: 'できませんでした',
+    pager31to60: /31.60 \/ /,
+  },
+};
+const resolveLang = (tag) => (String(tag).toLowerCase().startsWith('ja') ? 'ja' : 'en');
+const L = L10N[resolveLang(uiLanguage)];
+
 
 async function findBrowser() {
   if (process.env.CHROME_PATH && existsSync(process.env.CHROME_PATH)) return process.env.CHROME_PATH;
@@ -91,6 +131,9 @@ const snapshotExpression = `(() => {
     type: document.querySelector('#type-options input[name="type"]:checked')?.value ?? null,
     background: document.body ? getComputedStyle(document.body).backgroundColor : null,
     firstLanguage: document.querySelector('.grs-repo__language')?.textContent ?? null,
+    sortLabel: document.querySelector('#sort-options [data-grs-sort-label]')?.textContent ?? '',
+    statusText: document.querySelector('[data-grs-status]')?.textContent ?? '',
+    localeHint: document.documentElement.lang || navigator.language,
   };
 })()`;
 
@@ -129,7 +172,7 @@ async function expectedRepos(authenticated = false) {
 
 async function verifyOwnerMismatch(cdp, snapshot, baseUrl) {
   await cdp.send('Page.navigate', { url: 'https://github.com/octocat?tab=repositories' });
-  await waitFor(async () => (await snapshot()).status.includes('一致しません'), 'owner mismatch');
+  await waitFor(async () => (await snapshot()).status.includes(L.mismatch), 'owner mismatch');
   const mismatch = await snapshot();
   assert(!mismatch.nativeHidden && mismatch.searchVisible, 'native list unavailable after owner mismatch');
   // Public retry may itself hit an unauthenticated rate limit; the recovery
@@ -146,7 +189,7 @@ async function main() {
   const chrome = spawn(browser, [
     '--headless=new', '--remote-debugging-port=0', `--user-data-dir=${profile}`,
     `--disable-extensions-except=${dist}`, `--load-extension=${dist}`,
-    '--no-first-run', '--no-default-browser-check', '--disable-gpu', '--window-size=1280,1600', 'about:blank',
+    '--no-first-run', '--no-default-browser-check', '--disable-gpu', '--window-size=1280,1600', `--lang=${uiLanguage}`, 'about:blank',
   ], { stdio: 'ignore' });
   let cdp;
   try {
@@ -181,30 +224,65 @@ async function main() {
     const snapshot = () => cdp.evaluate(snapshotExpression);
     const loaded = await waitFor(async () => {
       const s = await snapshot();
-      if (s.status.includes('取得できませんでした')) throw new Error(`Extension fetch failed: ${s.status}`);
+      if (s.status.includes(L.loadFailed)) throw new Error(`Extension fetch failed: ${s.status}`);
       return s.rows && s.nativeHidden && s;
     }, 'extension list');
     assert(loaded.menu === 5 && loaded.count === 1 && !loaded.hasLegacyPanel && loaded.searchVisible, `integration failed: controls=${loaded.count}, menu=${loaded.menu}`);
+    assert(loaded.sortLabel === L.sortLabel, `UI language mismatch: sort label is "${loaded.sortLabel}", expected "${L.sortLabel}"`);
+    if (probeOnly) {
+      let shots = [];
+      if (process.env.GRS_STORE_SHOTS === '1') {
+        await cdp.send('Emulation.setDeviceMetricsOverride', {
+          width: 1280,
+          height: 800,
+          deviceScaleFactor: 1,
+          mobile: false,
+        });
+        for (const mode of ['light', 'dark']) {
+          await cdp.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value: mode }] });
+          await cdp.evaluate('window.scrollTo(0, 0)');
+          await delay(400);
+          const image = await cdp.send('Page.captureScreenshot', { format: 'png' });
+          const file = path.join(root, 'docs', 'screenshots', `store-1280x800-${uiLanguage}-${mode}.png`);
+          await writeFile(file, Buffer.from(image.data, 'base64'));
+          shots.push(file);
+        }
+        await cdp.send('Emulation.clearDeviceMetricsOverride');
+      }
+      const report = {
+        ok: true,
+        mode: 'probe',
+        requestedLanguage: uiLanguage,
+        resolvedLocale: resolveLang(uiLanguage),
+        sortLabel: loaded.sortLabel,
+        status: loaded.status,
+        menuItems: loaded.menu,
+        background: loaded.background,
+        screenshots: shots,
+      };
+      console.log(JSON.stringify(report, null, 2));
+      return;
+    }
     const expected = await expectedRepos(Boolean(authWorker));
     assert(expected.length > 100, `Use an owner with over 100 public repositories, got ${expected.length}`);
-    assert(loaded.status.includes(`取得${expected.length}件`), `total mismatch: ${loaded.status}`);
+    assert(loaded.status.includes(L.fetched(expected.length)), `total mismatch: ${loaded.status}`);
     assert(JSON.stringify(loaded.names) === JSON.stringify(expected.slice(0, 30).map((repo) => repo.name)), 'first page activity order mismatch');
     await cdp.evaluate(`document.querySelector('[data-grs-page="next"]')?.scrollIntoView({block:'center'})`);
     await delay(500);
     await clickSelector(cdp, '[data-grs-page="next"]');
-    const second = await waitFor(async () => { const s = await snapshot(); return s.pager.includes('31–60') && s; }, 'page 2');
+    const second = await waitFor(async () => { const s = await snapshot(); return L.pager31to60.test(s.pager) && s; }, 'page 2');
     assert(JSON.stringify(second.names) === JSON.stringify(expected.slice(30, 60).map((repo) => repo.name)), `page 2 mismatch: ${JSON.stringify(second.names.slice(0, 3))}`);
 
     const needle = expected[0].name.slice(0, 8).toLowerCase();
     await clickSelector(cdp, '#your-repos-filter');
     await cdp.send('Input.insertText', { text: needle });
     const expectedSearch = expected.filter((repo) => `${repo.name}\n${repo.description ?? ''}`.toLowerCase().includes(needle));
-    await waitFor(async () => { const s = await snapshot(); return s.status.includes(`表示${expectedSearch.length}件`) && s; }, 'global search');
+    await waitFor(async () => { const s = await snapshot(); return s.status.includes(L.shown(expectedSearch.length)) && s; }, 'global search');
     await cdp.evaluate(`(() => {const input=document.querySelector('#your-repos-filter');input.value='';input.dispatchEvent(new Event('input',{bubbles:true}));})()`);
     await delay(400);
     await clickSelector(cdp, '#type-options summary');
     await clickSelector(cdp, '#type-options label:has(input[name="type"][value="fork"])');
-    const filtered = await waitFor(async () => { const s = await snapshot(); return s.type === 'fork' && s.status.includes(`表示${expected.filter(r => r.fork).length}件`) && s; }, 'Fork filter');
+    const filtered = await waitFor(async () => { const s = await snapshot(); return s.type === 'fork' && s.status.includes(L.shown(expected.filter(r => r.fork).length)) && s; }, 'Fork filter');
     assert(filtered.forks.every(Boolean), 'Fork filter contains non-fork');
     await clickSelector(cdp, '#sort-options summary');
     await clickSelector(cdp, '[data-grs-sort="created"]');
@@ -226,7 +304,7 @@ async function main() {
     await waitFor(async () => { const s = await snapshot(); return s.nativeHidden && s.sort === 'activity' && s.rows && s; }, 'back to custom sort');
     await clickSelector(cdp, '#type-options summary');
     await clickSelector(cdp, '#type-options label:has(input[name="type"][value=""])');
-    await waitFor(async () => { const s = await snapshot(); return s.type === '' && s.status.includes(`表示${expected.length}件`) && s; }, 'clear Type');
+    await waitFor(async () => { const s = await snapshot(); return s.type === '' && s.status.includes(L.shown(expected.length)) && s; }, 'clear Type');
 
     // Never retain authenticated screenshots under the public screenshot names.
     if (authWorker) for (const mode of ['light', 'dark']) await rm(path.join(dist, `browser-check-${mode}.png`), { force: true });
@@ -239,27 +317,27 @@ async function main() {
       assert((await snapshot()).status.includes('認証済み'), 'authenticated scope was not labelled');
       authenticatedVerified = true;
       errorFallbackVerified = await verifyOwnerMismatch(cdp, snapshot, `https://github.com/${encodeURIComponent(owner)}?tab=repositories`);
-      await waitFor(async () => { const s = await snapshot(); return s.nativeHidden && s.status.includes('認証済み') && s; }, 'authenticated list after navigation');
+      await waitFor(async () => { const s = await snapshot(); return s.nativeHidden && s.status.includes(L.authenticated) && s; }, 'authenticated list after navigation');
       // Exercise the same trusted extension message used by the options page.
       const extensionId = await authWorker.evaluate('chrome.runtime.id');
       // Capture only public results; authenticated repository names never enter the screenshots.
       await cdp.send('Page.navigate', { url: `chrome-extension://${extensionId}/options.html` });
       await waitFor(async () => cdp.evaluate(`!!document.querySelector('#clear')`), 'options page');
-      const readyStatus = await waitFor(async () => cdp.evaluate(`(() => {const text=document.querySelector('#status')?.textContent ?? ''; return text && !text.includes('確認中') ? text : null;})()`), 'options status');
-      assert(readyStatus.includes('設定済み'), `options status: ${readyStatus}`);
+      const readyStatus = await waitFor(async () => cdp.evaluate(`(() => {const text=document.querySelector('#status')?.textContent ?? ''; return text && !text.includes('…') ? text : null;})()`), 'options status');
+      assert(readyStatus.includes(L.configured), `options status: ${readyStatus}`);
       await cdp.evaluate(`document.querySelector('#clear').click()`);
-      const cleared = await waitFor(async () => cdp.evaluate(`(() => {const text=document.querySelector('#status')?.textContent ?? ''; return text.includes('解除しました') ? 'cleared' : text.includes('できませんでした') ? text : null;})()`), 'clear token');
+      const cleared = await waitFor(async () => cdp.evaluate(`(() => {const text=document.querySelector('#status')?.textContent ?? ''; return text.includes(L.cleared) ? 'cleared' : text.includes(L.clearFailed) ? text : null;})()`), 'clear token');
       assert(cleared === 'cleared', `clear failed: ${cleared}`);
       // Re-enter the owner page after the token was removed. The UI must not
       // display stale private data while the next public request is pending.
       await cdp.send('Page.navigate', { url: `https://github.com/${encodeURIComponent(owner)}?tab=repositories` });
       const afterClear = await waitFor(async () => {
         const s = await snapshot();
-        return ((s.status.includes('公開のみ') && s.nativeHidden) || (s.status.includes('GitHub標準一覧を表示中') && !s.nativeHidden && !s.rows && !s.status.includes('取得中'))) && s;
+        return ((s.status.includes(L.publicOnly) && s.nativeHidden) || (s.status.includes(L.standardList) && !s.nativeHidden && !s.rows && !s.status.includes(L.loading))) && s;
       }, 'public list or rate-limit fallback after auth clear');
-      assert(!afterClear.status.includes('認証済み') && !afterClear.names.some((name) => expected.some((repo) => repo.private && repo.name === name)), 'private context remained after clear');
+      assert(!afterClear.status.includes(L.authenticated) && !afterClear.names.some((name) => expected.some((repo) => repo.private && repo.name === name)), 'private context remained after clear');
       publicExpected = await expectedRepos(false);
-      if (afterClear.nativeHidden) assert(afterClear.status.includes(`取得${publicExpected.length}件`), `public total after clear: ${afterClear.status}`);
+      if (afterClear.nativeHidden) assert(afterClear.status.includes(L.fetched(publicExpected.length)), `public total after clear: ${afterClear.status}`);
       else publicCaptureError = 'Public API rate limited after token removal';
       authWorker.close();
     }
@@ -296,8 +374,7 @@ async function main() {
           path.join(root, 'docs', 'screenshots', `store-1280x800-${mode}.png`),
           Buffer.from(image.data, 'base64'),
         );
-      }
-      await cdp.send('Emulation.clearDeviceMetricsOverride');
+      }      await cdp.send('Emulation.clearDeviceMetricsOverride');
     }
 
     assert(images.light !== images.dark, `light/dark did not change: ${JSON.stringify(images)}`);

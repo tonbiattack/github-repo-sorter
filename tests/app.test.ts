@@ -89,12 +89,12 @@ describe('GitHub form integration', () => {
     search.value = 'repo-101';
     search.dispatchEvent(new Event('input', { bubbles: true }));
     await settle();
-    expect(document.querySelector('[data-grs-status]')?.textContent).toContain('表示1件');
+    expect(document.querySelector('[data-grs-status]')?.textContent).toContain('1 shown');
     // Archived is now honoured from API data, so the extension keeps the list.
     (document.querySelector('input[name="type"][value="archived"]') as HTMLInputElement).click();
     await settle();
     expect(document.querySelector('[data-grs-list]')).not.toBeNull();
-    expect(document.querySelector('[data-grs-status]')?.textContent).toContain('表示0件');
+    expect(document.querySelector('[data-grs-status]')?.textContent).toContain('0 shown');
   });
 
   it('falls back to the standard listing for a Type the API cannot reproduce', async () => {
@@ -187,11 +187,11 @@ describe('GitHub form integration', () => {
     app.start();
     await settle();
     const summary = document.querySelector('#sort-options summary')!;
-    expect(summary.querySelector('[data-grs-sort-label]')?.textContent).toBe('作成・Fork・Push順');
+    expect(summary.querySelector('[data-grs-sort-label]')?.textContent).toBe('Created · Forked · Pushed');
 
     (document.querySelector('[data-grs-sort="pushed"]') as HTMLButtonElement).click();
     await settle();
-    expect(summary.querySelector('[data-grs-sort-label]')?.textContent).toBe('Push順');
+    expect(summary.querySelector('[data-grs-sort-label]')?.textContent).toBe('Newest pushed');
 
     (document.querySelector('input[name="sort"][value="name"]') as HTMLInputElement).click();
     await settle();
@@ -216,7 +216,7 @@ describe('GitHub form integration', () => {
     (document.querySelector('input[name="language"][value="typescript"]') as HTMLInputElement).click();
     await settle();
     expect(document.querySelectorAll('[data-grs-list] .grs-repo')).toHaveLength(2);
-    expect(document.querySelector('[data-grs-status]')?.textContent).toContain('表示2件');
+    expect(document.querySelector('[data-grs-status]')?.textContent).toContain('2 shown');
 
     (document.querySelector('input[name="visibility"][value="private"]') as HTMLInputElement).click();
     await settle();

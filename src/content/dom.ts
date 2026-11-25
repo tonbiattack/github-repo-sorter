@@ -1,4 +1,5 @@
-import { SORT_LABELS } from '../shared/labels';
+import { sortHint, sortLabel } from '../shared/labels';
+import { t } from '../shared/i18n';
 import { SORT_MODES } from '../shared/types';
 import type { Scope, SortMode, TypeFilter } from '../shared/types';
 
@@ -49,7 +50,7 @@ export function pageButton(label: string, page: 'prev' | 'next', disabled: boole
 /** Append buttons, not radio inputs/labels: GitHub's autosubmit must not see them. */
 export function addSortItems(list: HTMLElement, selected: SortMode | null): void {
   if (list.querySelector('[data-grs-sort]')) return;
-  const separator = h('div', { className: 'grs-menu-heading', text: 'Repo Sorter' });
+  const separator = h('div', { className: 'grs-menu-heading', text: t('menuHeading') });
   separator.dataset.grsMenu = '';
   list.append(separator);
   for (const sort of SORT_MODES) {
@@ -59,29 +60,16 @@ export function addSortItems(list: HTMLElement, selected: SortMode | null): void
         type: 'button',
         role: 'menuitemradio',
         'aria-checked': String(sort === selected),
+        title: sortHint(sort),
         tabindex: '0',
         'data-grs-sort': sort,
       },
     }, [
       h('span', { className: 'grs-menu-check', text: '✓', attrs: { 'aria-hidden': 'true' } }),
-      h('span', { text: SORT_LABELS[sort] }),
+      h('span', { text: sortLabel(sort) }),
     ]);
     list.append(button);
   }
-}
-
-/** Returns null if GitHub's current Type value is not supported by the extension. */
-export function scopeFromNative(value: string): Scope | null {
-  if (value === '') return 'all';
-  if (value === 'fork') return 'forks';
-  if (value === 'source') return 'non-forks';
-  return null;
-}
-
-export function nativeTypeForScope(scope: Scope): string {
-  if (scope === 'forks') return 'fork';
-  if (scope === 'non-forks') return 'source';
-  return '';
 }
 
 /**
@@ -124,7 +112,17 @@ export function nativeTypeForFilter(type: TypeFilter): string {
   }
 }
 
-/** Compact label shown on the Sort button while a custom order is active. */
+/** Short label shown on the Sort button while a custom order is active. */
 export function sortButtonLabel(sort: SortMode): string {
-  return SORT_LABELS[sort];
+  return sortLabel(sort);
+}
+
+/**
+ * Scope is kept for settings compatibility; it is derived from the Type filter
+ * so the two can never disagree.
+ */
+export function scopeForType(type: TypeFilter): Scope {
+  if (type === 'forks') return 'forks';
+  if (type === 'non-forks') return 'non-forks';
+  return 'all';
 }
