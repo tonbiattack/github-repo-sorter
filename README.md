@@ -12,6 +12,7 @@ No local server, no analytics, no third-party servers.
 - Implementation notes (decisions, deviations, verification): [docs/IMPLEMENTATION-NOTES.md](docs/IMPLEMENTATION-NOTES.md)
 - Privacy policy: [docs/PRIVACY.md](docs/PRIVACY.md)
 - Store listing copy: [docs/STORE-LISTING.md](docs/STORE-LISTING.md)
+- Store screenshots: `docs/screenshots/store-1280x800-{light,dark}.png`
 
 > This project is not affiliated with GitHub, Inc.
 

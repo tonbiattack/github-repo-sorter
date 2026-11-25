@@ -75,18 +75,20 @@ function render(size) {
     x >= left * big && x < right * big && y >= top * big && y < bottom * big;
 
   // Three bars, left-aligned, decreasing in length (a sort indicator).
+  // Artwork spans 12.5%–87.5% so the 128px icon keeps the 16px transparent
+  // padding the Chrome Web Store asks for (96x96 of actual artwork).
   const bars = [
-    { top: 0.1, bottom: 0.2, left: 0.12, right: 0.88 },
-    { top: 0.32, bottom: 0.42, left: 0.12, right: 0.62 },
-    { top: 0.54, bottom: 0.64, left: 0.12, right: 0.36 },
+    { top: 0.125, bottom: 0.25, left: 0.125, right: 0.875 },
+    { top: 0.323, bottom: 0.448, left: 0.125, right: 0.625 },
+    { top: 0.521, bottom: 0.646, left: 0.125, right: 0.375 },
   ];
   // Downward chevron below the bars, kept clear of them.
   const chevron = (x, y) => {
     const nx = x / big;
     const ny = y / big;
-    if (ny < 0.74 || ny > 0.9) return false;
-    const t = (ny - 0.74) / 0.16;
-    const halfWidth = 0.34 * (1 - t);
+    if (ny < 0.72 || ny > 0.875) return false;
+    const t = (ny - 0.72) / 0.155;
+    const halfWidth = 0.375 * (1 - t);
     return Math.abs(nx - 0.5) <= halfWidth;
   };
 

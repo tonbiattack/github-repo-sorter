@@ -2,7 +2,7 @@
 
 ストア提出用の文案と画像の要件をまとめたもの。実際の提出・公開は所有者の承認後に行う。
 
-最終更新: 2026-11-25
+最終更新: 2026-11-25（公式要件の確認日: 2026-11-25）
 
 ## 名称
 
@@ -103,13 +103,62 @@ GitHub 標準の Sort は「Last updated / Name / Stars」のみです。この�
 
 | 種類 | 要件 | 状態 |
 | --- | --- | --- |
-| ストアアイコン | 128×128 PNG | `icons/icon-128.png`（生成済み） |
-| スクリーンショット | 1280×800 または 640×400、最大 5 枚 | `docs/screenshots/issue-10-after-light.png` / `-dark.png` を 1280×800 に切り出して使用 |
-| プロモ画像（小） | 440×280 | 任意。未作成 |
-| プロモ画像（大） | 1400×560 | 任意。未作成 |
+| ストアアイコン | 128×128 PNG（実体 96×96＋16px の透明余白） | `icons/icon-128.png`（生成済み、実体 96×96・余白 16px を検証済み） |
+| スクリーンショット | 1280×800 または 640×400、正方形の角、パディングなし | `docs/screenshots/store-1280x800-light.png` / `-dark.png`（1280×800 を検証済み） |
+| プロモ画像（小） | 440×280 | 未作成（任意） |
+| プロモ画像（大） | 1400×560 | 未作成（任意） |
 
 スクリーンショットには公開リポジトリのみを写すこと。非公開リポジトリ名・
-トークン・アカウント固有の情報を含めない。
+トークン・アカウント固有の情報を含めない。`GRS_STORE_SHOTS=1 npm run check:browser`
+で 1280×800 の画像を再生成できる（認証付き実行時は保存しない）。
+
+## 公式要件の確認記録（2026-11-25 確認）
+
+| 項目 | 要件 | 根拠 URL |
+| --- | --- | --- |
+| アイコン | 128×128 PNG。実体は 96×96、残りは透明余白。ライト/ダーク両対応。ドロップシャドウを避ける | <https://developer.chrome.com/docs/webstore/images#icons> |
+| スクリーンショット | 1280×800 または 640×400、正方形の角、パディングなし、最低 1 枚・最大 5 枚 | <https://developer.chrome.com/docs/webstore/images#screenshots> |
+| プロモ画像 | small 440×280、marquee 1400×560（いずれも任意） | <https://developer.chrome.com/docs/webstore/images#promo> |
+| 権限 | 機能に必要な最小の権限のみ。将来のための先行取得は不可 | <https://developer.chrome.com/docs/webstore/program-policies/permissions> |
+| プライバシー | プライバシーポリシーの提示とデータ取扱いの申告 | <https://developer.chrome.com/docs/webstore/program-policies/privacy> |
+| 単一目的 | 1 つの目的に限定した機能であること | <https://developer.chrome.com/docs/webstore/program-policies/> |
+
+本拡張の適合状況:
+
+- 権限は `storage` と `https://api.github.com/*` のみで、`tabs` / `cookies` /
+  `history` / `webRequest` を要求しない。最小権限の原則に沿う。
+- リモートコードを読み込まない（MV3 の CSP 既定に準拠、外部スクリプトなし）。
+- データは外部送信せず、プライバシーポリシーと実装が一致している。
+- 単一目的は「GitHub のリポジトリ一覧を最近の活動順に並べ替える」こと。
+- GitHub 公式と誤認されないよう、README・説明文に非公式である旨を明記。
+
+## ライセンス
+
+未決定。所有者の承認なしに付与しない。候補と依存の整理:
+
+| 候補 | 特徴 | 注意 |
+| --- | --- | --- |
+| MIT | 最短・寛容。拡張公開の一般的な選択 | 無保証の明示が必要 |
+| Apache-2.0 | 特許条項と変更表示を含む | NOTICE の運用が必要 |
+| ISC | MIT とほぼ同等でより短い | 認知度は MIT より低い |
+
+依存ライセンス:
+
+- 実行時に同梱される第三者コードは **なし**（`dist/` は自前コードのみ）。
+- 開発依存（`esbuild` / `typescript` / `vitest` / `jsdom` / `@types/*`）は
+  ビルド時のみ使用し、配布 ZIP には含まれない。各ライセンスは
+  MIT または Apache-2.0 系で、いずれも再配布時の制約は緩い。
+- 採択時は `LICENSE` ファイルを追加し、README と `package.json` の
+  `license` フィールドを同時に更新する。
+
+## GitHub リポジトリの About（2026-11-25 設定済み）
+
+- Description: `Sort GitHub repositories by recent activity, including creation, forks, and pushes, directly in GitHub.`
+- Topics: `browser-extension`, `chrome`, `chrome-extension`, `github`,
+  `github-api`, `manifest-v3`, `productivity`, `typescript`
+- Website: 未設定（ストア URL が公開されるまで載せない）
+- License: 未設定（所有者の承認後）
+
 
 ## 単一目的の説明（Single purpose）
 
@@ -143,11 +192,13 @@ treating creation, forks, and pushes as the same kind of activity.
 
 ## 提出前チェックリスト
 
-- [ ] `npm run release` で `release/github-repo-sorter-<version>.zip` を生成
-- [ ] ZIP に `manifest.json` がルートにあることを確認
-- [ ] 不要ファイル（`node_modules`、`src`、テスト、スクリーンショット）が入っていないことを確認
-- [ ] `manifest.json` の `version` を更新
-- [ ] スクリーンショットを 1280×800 で用意（公開データのみ）
+- [x] `npm run release` で `release/github-repo-sorter-<version>.zip` を生成
+- [x] ZIP に `manifest.json` がルートにあることを確認
+- [x] 不要ファイル（`node_modules`、`src`、テスト、スクリーンショット）が入っていないことを確認
+- [x] `manifest.json` の `version` を更新（0.2.0）
+- [x] アイコンを 128×128（実体 96×96）で用意
+- [x] スクリーンショットを 1280×800 で用意（公開データのみ）
+- [x] GitHub の About（Description / Topics）を設定
 - [ ] プライバシーポリシー URL が公開されていることを確認
 - [ ] 掲載文の英語・日本語を最終確認
 - [ ] 所有者の承認を得てからアップロード
@@ -156,5 +207,7 @@ treating creation, forks, and pushes as the same kind of activity.
 
 - ライセンスは未決定（所有者の承認が必要）。依存はすべて devDependencies で、
   実行時に同梱される第三者コードはない。
-- プロモ画像（440×280 / 1400×560）は未作成。
-- ストアの審査要件は変更されることがある。提出時に最新の公式要件を確認する。
+- プロモ画像（440×280 / 1400×560）は未作成。任意だが、マーキー枠への掲載には必要。
+- プライバシーポリシーはリポジトリ内の `docs/PRIVACY.md` にあり、ストアには
+  その公開 URL を登録する。
+- ストアの審査要件は変更されることがある。提出時に最新の公式要件を再確認する。

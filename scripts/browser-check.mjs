@@ -275,6 +275,31 @@ async function main() {
         await writeFile(path.join(dist, `browser-check-${mode}.png`), Buffer.from(image.data, 'base64'));
       }
     }
+
+    // Store screenshots must be exactly 1280x800 (or 640x400) and show public
+    // repositories only. A viewport override gives the required dimensions
+    // without depending on the host window size.
+    if (process.env.GRS_STORE_SHOTS === '1' && canCaptureAfter) {
+      await cdp.send('Emulation.setDeviceMetricsOverride', {
+        width: 1280,
+        height: 800,
+        deviceScaleFactor: 1,
+        mobile: false,
+      });
+      await cdp.evaluate('window.scrollTo(0, 0)');
+      await delay(400);
+      for (const mode of ['light', 'dark']) {
+        await cdp.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value: mode }] });
+        await delay(400);
+        const image = await cdp.send('Page.captureScreenshot', { format: 'png' });
+        await writeFile(
+          path.join(root, 'docs', 'screenshots', `store-1280x800-${mode}.png`),
+          Buffer.from(image.data, 'base64'),
+        );
+      }
+      await cdp.send('Emulation.clearDeviceMetricsOverride');
+    }
+
     assert(images.light !== images.dark, `light/dark did not change: ${JSON.stringify(images)}`);
     console.log(JSON.stringify({ ok: true, browser: version.Browser, owner, total: expected.length, authenticatedVerified, errorFallbackVerified, publicTotal: publicExpected.length, multiPage: true, sortOrder: true, paging: true, search: true, forkFilter: true, standardSort: true, restore: true, turboReplacement: true, themes: images, screenshots: canCaptureAfter ? ['dist/browser-check-light.png', 'dist/browser-check-dark.png'] : [], screenshotNote: canCaptureAfter ? null : publicCaptureError }, null, 2));
   } finally {
