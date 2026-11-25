@@ -13,6 +13,16 @@ function markup(): string {
       <label role="menuitemradio"><input type="radio" name="type" value="source"><span data-menu-button-text>Sources</span></label>
       <label role="menuitemradio"><input type="radio" name="type" value="archived"><span data-menu-button-text>Archived</span></label>
     </details>
+    <details id="language-options"><summary>Language</summary><span data-menu-button>All</span>
+      <label role="menuitemradio"><input type="radio" name="language" value="" checked><span data-menu-button-text>All</span></label>
+      <label role="menuitemradio"><input type="radio" name="language" value="typescript"><span data-menu-button-text>TypeScript</span></label>
+      <label role="menuitemradio"><input type="radio" name="language" value="python"><span data-menu-button-text>Python</span></label>
+    </details>
+    <details id="visibility-options"><summary>Visibility</summary><span data-menu-button>All</span>
+      <label role="menuitemradio"><input type="radio" name="visibility" value="" checked><span data-menu-button-text>All</span></label>
+      <label role="menuitemradio"><input type="radio" name="visibility" value="public"><span data-menu-button-text>Public</span></label>
+      <label role="menuitemradio"><input type="radio" name="visibility" value="private"><span data-menu-button-text>Private</span></label>
+    </details>
     <details id="sort-options"><summary>Sort</summary><div class="SelectMenu-list">
       <label role="menuitemradio"><input type="radio" name="sort" value="" checked>Updated</label>
       <label role="menuitemradio"><input type="radio" name="sort" value="name">Name</label>
@@ -30,7 +40,7 @@ beforeEach(() => {
   history.replaceState(null, '', 'https://github.com/owner?tab=repositories');
   document.body.innerHTML = markup();
   sendMessage = vi.fn(async (message: { type: string }) => {
-    if (message.type === 'settings-get') return { ok: true, kind: 'settings', data: { sort: 'activity', scope: 'all', view: 'sorter' } };
+    if (message.type === 'settings-get') return { ok: true, kind: 'settings', data: { sort: 'activity', scope: 'all', view: 'sorter', type: 'all', language: 'all', visibility: 'all' } };
     if (message.type === 'fetch') return response();
     return { ok: true, kind: 'operation', data: { done: true } };
   });
@@ -64,7 +74,7 @@ describe('GitHub form integration', () => {
     expect(document.querySelector('[data-grs-list]')).not.toBeNull();
   });
 
-  it('intercepts only supported Type selections and searches the whole fetched set', async () => {
+  it('intercepts supported Type selections and searches the whole fetched set', async () => {
     const repos = Array.from({ length: 101 }, (_, i) => makeRepo(i + 1, { name: `repo-${i + 1}`, fork: i === 100 }));
     sendMessage.mockImplementation(async (message: { type: string }) => message.type === 'settings-get'
       ? { ok: true, kind: 'settings', data: { sort: 'activity', scope: 'all', view: 'sorter' } }
@@ -80,7 +90,22 @@ describe('GitHub form integration', () => {
     search.dispatchEvent(new Event('input', { bubbles: true }));
     await settle();
     expect(document.querySelector('[data-grs-status]')?.textContent).toContain('表示1件');
+    // Archived is now honoured from API data, so the extension keeps the list.
     (document.querySelector('input[name="type"][value="archived"]') as HTMLInputElement).click();
+    await settle();
+    expect(document.querySelector('[data-grs-list]')).not.toBeNull();
+    expect(document.querySelector('[data-grs-status]')?.textContent).toContain('表示0件');
+  });
+
+  it('falls back to the standard listing for a Type the API cannot reproduce', async () => {
+    document.body.innerHTML = document.body.innerHTML.replace(
+      '<input type="radio" name="type" value="archived">',
+      '<input type="radio" name="type" value="sponsorable">',
+    );
+    app.start();
+    await settle();
+    (document.querySelector('input[name="type"][value="sponsorable"]') as HTMLInputElement).click();
+    await settle();
     expect(document.querySelector('[data-grs-list]')).toBeNull();
     expect(document.querySelector('#user-repositories-list')?.hasAttribute('data-grs-hidden')).toBe(false);
   });
@@ -112,7 +137,7 @@ describe('GitHub form integration', () => {
 
   it('keeps native search usable after a fetch failure', async () => {
     sendMessage.mockImplementation(async (message: { type: string }) => {
-      if (message.type === 'settings-get') return { ok: true, kind: 'settings', data: { sort: 'activity', scope: 'all', view: 'sorter' } };
+      if (message.type === 'settings-get') return { ok: true, kind: 'settings', data: { sort: 'activity', scope: 'all', view: 'sorter', type: 'all', language: 'all', visibility: 'all' } };
       if (message.type === 'fetch') return { ok: false, error: { kind: 'rate-limit', message: 'limited' } };
       return { ok: true, kind: 'operation', data: { done: true } };
     });
@@ -129,7 +154,7 @@ describe('GitHub form integration', () => {
   it('applies search changes made while a request is loading', async () => {
     let finish: ((value: unknown) => void) | undefined;
     sendMessage.mockImplementation(async (message: { type: string }) => {
-      if (message.type === 'settings-get') return { ok: true, kind: 'settings', data: { sort: 'activity', scope: 'all', view: 'sorter' } };
+      if (message.type === 'settings-get') return { ok: true, kind: 'settings', data: { sort: 'activity', scope: 'all', view: 'sorter', type: 'all', language: 'all', visibility: 'all' } };
       if (message.type === 'fetch') return new Promise((resolve) => { finish = resolve; });
       return { ok: true, kind: 'operation', data: { done: true } };
     });
@@ -158,6 +183,51 @@ describe('GitHub form integration', () => {
     expect(document.querySelector('[data-grs-list]')).not.toBeNull();
   });
 
+  it('shows the active custom sort on the Sort button and restores GitHub markup', async () => {
+    app.start();
+    await settle();
+    const summary = document.querySelector('#sort-options summary')!;
+    expect(summary.querySelector('[data-grs-sort-label]')?.textContent).toBe('作成・Fork・Push順');
+
+    (document.querySelector('[data-grs-sort="pushed"]') as HTMLButtonElement).click();
+    await settle();
+    expect(summary.querySelector('[data-grs-sort-label]')?.textContent).toBe('Push順');
+
+    (document.querySelector('input[name="sort"][value="name"]') as HTMLInputElement).click();
+    await settle();
+    expect(summary.querySelector('[data-grs-sort-label]')).toBeNull();
+    expect(summary.hasAttribute('data-grs-sort-active')).toBe(false);
+  });
+
+  it('applies Language and Visibility from GitHub menus to the fetched set', async () => {
+    const repos = [
+      makeRepo(1, { name: 'ts-app', language: 'TypeScript', visibility: 'public' }),
+      makeRepo(2, { name: 'py-app', language: 'Python', visibility: 'public' }),
+      makeRepo(3, { name: 'ts-secret', language: 'TypeScript', visibility: 'private' }),
+    ];
+    sendMessage.mockImplementation(async (message: { type: string }) => {
+      if (message.type === 'settings-get') return { ok: true, kind: 'settings', data: { sort: 'activity', scope: 'all', view: 'sorter', type: 'all', language: 'all', visibility: 'all' } };
+      if (message.type === 'fetch') return response(repos);
+      return { ok: true, kind: 'operation', data: { done: true } };
+    });
+    app.start();
+    await settle();
+
+    (document.querySelector('input[name="language"][value="typescript"]') as HTMLInputElement).click();
+    await settle();
+    expect(document.querySelectorAll('[data-grs-list] .grs-repo')).toHaveLength(2);
+    expect(document.querySelector('[data-grs-status]')?.textContent).toContain('表示2件');
+
+    (document.querySelector('input[name="visibility"][value="private"]') as HTMLInputElement).click();
+    await settle();
+    expect(document.querySelectorAll('[data-grs-list] .grs-repo')).toHaveLength(1);
+    expect(document.querySelector('[data-grs-list]')?.textContent).toContain('ts-secret');
+    expect(sendMessage).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'settings-set',
+      settings: expect.objectContaining({ language: 'typescript', visibility: 'private' }),
+    }));
+  });
+
   it('purges private content immediately when trusted authentication changes', async () => {
     let onMessage: ((message: unknown, sender: { id: string }) => void) | undefined;
     vi.stubGlobal('chrome', { runtime: {
@@ -165,7 +235,7 @@ describe('GitHub form integration', () => {
       onMessage: { addListener: (listener: typeof onMessage) => { onMessage = listener; }, removeListener: vi.fn() },
     } });
     sendMessage.mockImplementation(async (message: { type: string }) => {
-      if (message.type === 'settings-get') return { ok: true, kind: 'settings', data: { sort: 'activity', scope: 'all', view: 'sorter' } };
+      if (message.type === 'settings-get') return { ok: true, kind: 'settings', data: { sort: 'activity', scope: 'all', view: 'sorter', type: 'all', language: 'all', visibility: 'all' } };
       if (message.type === 'fetch') return response([makeRepo(1, { name: 'private-test', visibility: 'private' })]);
       return { ok: true, kind: 'operation', data: { done: true } };
     });
@@ -180,7 +250,7 @@ describe('GitHub form integration', () => {
   it('keeps native list accessible when fetch fails and ignores a superseded response', async () => {
     let resolveFirst: ((value: unknown) => void) | undefined;
     sendMessage.mockImplementation(async (message: { type: string }) => {
-      if (message.type === 'settings-get') return { ok: true, kind: 'settings', data: { sort: 'activity', scope: 'all', view: 'sorter' } };
+      if (message.type === 'settings-get') return { ok: true, kind: 'settings', data: { sort: 'activity', scope: 'all', view: 'sorter', type: 'all', language: 'all', visibility: 'all' } };
       if (message.type === 'fetch') return new Promise((resolve) => { resolveFirst = resolve; });
       return { ok: true, kind: 'operation', data: { done: true } };
     });

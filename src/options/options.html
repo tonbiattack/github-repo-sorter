@@ -32,9 +32,21 @@
               type="password"
               autocomplete="off"
               spellcheck="false"
-              placeholder="ghp_… または github_pat_…"
+              placeholder="github_pat_… または ghp_…"
             />
           </label>
+
+          <label class="check">
+            <input id="persist" type="checkbox" />
+            <span>
+              ブラウザを再起動しても保持する（<code>chrome.storage.local</code> に平文で保存）
+            </span>
+          </label>
+          <p class="warn" id="persist-warning" hidden>
+            この端末のディスク上にトークンが平文で残ります。共用 PC や、端末の盗難・マルウェアが心配な場合は
+            オフのままにしてください。オフの場合、ブラウザを終了するとトークンは消えます。
+          </p>
+
           <div class="actions">
             <button id="save" class="button button--primary" type="submit">保存して検証</button>
             <button id="clear" class="button" type="button">トークンを解除</button>
@@ -44,14 +56,20 @@
 
         <ul class="notes">
           <li>
-            必要な権限: クラシックトークンは <code>repo</code> スコープ、fine-grained
-            トークンは対象リポジトリの <code>Metadata: Read</code> です。
+            推奨は fine-grained トークンで、対象リポジトリの <code>Metadata: Read</code> のみを付与します。
+            クラシックトークンの <code>repo</code> スコープは<strong>読み取り専用ではありません</strong>
+            （書き込み権限を含むため、より強い権限になります）。
           </li>
           <li>
-            トークンはブラウザのセッション領域（<code>chrome.storage.session</code>）にのみ保存し、ページには渡しません。ブラウザを終了すると消えます。
+            トークンは content script には渡しません。保存先は既定で <code>chrome.storage.session</code>
+            （ブラウザ終了で消去）です。
           </li>
           <li>
             外部サーバーへの送信は行いません。通信先は <code>api.github.com</code> のみです。
+          </li>
+          <li>
+            認証に失敗した場合や、別アカウントでログインしている場合は、公開一覧への切り替えを
+            自動では行いません。エラーとして表示します。
           </li>
         </ul>
       </section>
@@ -65,7 +83,10 @@
           <li>
             GitHub 標準の「Sort」から「作成・Fork・Push順」などを選びます。標準項目を選ぶと GitHub の一覧に戻ります。
           </li>
-          <li>並び替え・絞り込みは owner ごとに保存され、次回訪問時に復元されます。</li>
+          <li>
+            検索欄・Type・Language・Visibility は GitHub 標準の操作をそのまま使えます。
+          </li>
+          <li>並び順・絞り込みは owner ごとに保存され、次回訪問時に復元されます。</li>
         </ol>
       </section>
     </main>

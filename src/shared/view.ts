@@ -1,7 +1,7 @@
 import { DEFAULT_PAGE_SIZE, filterRepos, paginate } from './filter';
 import { sortRepos } from './sort';
 import type { Page } from './filter';
-import type { Repo, Scope, SortMode } from './types';
+import type { Repo, Scope, SortMode, TypeFilter, VisibilityFilter } from './types';
 
 export interface ViewOptions {
   readonly repos: readonly Repo[];
@@ -10,6 +10,9 @@ export interface ViewOptions {
   readonly query: string;
   readonly page: number;
   readonly pageSize?: number;
+  readonly type?: TypeFilter;
+  readonly language?: string;
+  readonly visibility?: VisibilityFilter;
 }
 
 export interface View {
@@ -27,7 +30,13 @@ export interface View {
  */
 export function buildView(options: ViewOptions): View {
   const filtered = sortRepos(
-    filterRepos(options.repos, { scope: options.scope, query: options.query }),
+    filterRepos(options.repos, {
+      scope: options.scope,
+      query: options.query,
+      type: options.type,
+      language: options.language,
+      visibility: options.visibility,
+    }),
     options.sort,
   );
   const page = paginate(filtered, options.page, options.pageSize ?? DEFAULT_PAGE_SIZE);

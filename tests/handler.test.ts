@@ -58,7 +58,7 @@ function setup(options: {
     fetchViewer,
     cache,
     settings: createSettingsStore(local),
-    tokens: createTokenStore(session),
+    tokens: createTokenStore(session, local),
     now: () => clock.now,
     extensionUrlPrefix: 'chrome-extension://ext/',
     notifyProgress,
@@ -256,9 +256,9 @@ describe('settings', () => {
     expect(set).toEqual({
       ok: true,
       kind: 'settings',
-      data: { sort: 'created', scope: 'forks', view: 'sorter' },
+      data: { sort: 'created', scope: 'forks', view: 'sorter', type: 'all', language: 'all', visibility: 'all' },
     });
-    expect(local.data['grs:settings:owner']).toEqual({ sort: 'created', scope: 'forks', view: 'sorter' });
+    expect(local.data['grs:settings:owner']).toEqual({ sort: 'created', scope: 'forks', view: 'sorter', type: 'all', language: 'all', visibility: 'all' });
 
     const get = expectResponse(
       await handler.handle(
@@ -266,7 +266,7 @@ describe('settings', () => {
         OWNER_PAGE,
       ),
     );
-    expect(get).toEqual({ ok: true, kind: 'settings', data: { sort: 'created', scope: 'forks', view: 'sorter' } });
+    expect(get).toEqual({ ok: true, kind: 'settings', data: { sort: 'created', scope: 'forks', view: 'sorter', type: 'all', language: 'all', visibility: 'all' } });
   });
 
   it('rejects settings access from a different owner page', async () => {
@@ -303,7 +303,7 @@ describe('authentication management', () => {
     expect(response).toEqual({
       ok: true,
       kind: 'auth-status',
-      data: { configured: true, login: 'owner' },
+      data: { configured: true, login: 'owner', persistent: false },
     });
     expect(session.data['grs:pat']).toBe(TOKEN);
     expect(cache.size).toBe(0);
@@ -333,7 +333,7 @@ describe('authentication management', () => {
     expect(status).toEqual({
       ok: true,
       kind: 'auth-status',
-      data: { configured: true, login: 'owner' },
+      data: { configured: true, login: 'owner', persistent: false },
     });
 
     await handler.handle({ channel: CHANNEL, type: 'auth-clear' }, EXTENSION_PAGE);
@@ -345,8 +345,52 @@ describe('authentication management', () => {
     expect(cleared).toEqual({
       ok: true,
       kind: 'auth-status',
-      data: { configured: false, login: null },
+      data: { configured: false, login: null, persistent: false },
     });
+  });
+
+  it('mirrors the token into persistent storage only when opted in', async () => {
+    const { handler, session, local } = setup();
+
+    const sessionOnly = expectResponse(
+      await handler.handle({ channel: CHANNEL, type: 'auth-set', token: TOKEN }, EXTENSION_PAGE),
+    );
+    expect(sessionOnly).toMatchObject({ data: { persistent: false } });
+    expect(session.data['grs:pat']).toBe(TOKEN);
+    expect(local.data['grs:pat']).toBeUndefined();
+
+    const persisted = expectResponse(
+      await handler.handle(
+        { channel: CHANNEL, type: 'auth-set', token: TOKEN, persist: true },
+        EXTENSION_PAGE,
+      ),
+    );
+    expect(persisted).toMatchObject({ data: { persistent: true } });
+    expect(local.data['grs:pat']).toBe(TOKEN);
+    expect(local.data['grs:pat-persist']).toBe(true);
+
+    const status = expectResponse(
+      await handler.handle({ channel: CHANNEL, type: 'auth-status' }, EXTENSION_PAGE),
+    );
+    expect(status).toMatchObject({ data: { persistent: true } });
+
+    await handler.handle({ channel: CHANNEL, type: 'auth-clear' }, EXTENSION_PAGE);
+    expect(session.data['grs:pat']).toBeUndefined();
+    expect(local.data['grs:pat']).toBeUndefined();
+    expect(local.data['grs:pat-persist']).toBeUndefined();
+  });
+
+  it('drops the persistent copy when re-saving without the opt-in', async () => {
+    const { handler, local } = setup();
+    await handler.handle(
+      { channel: CHANNEL, type: 'auth-set', token: TOKEN, persist: true },
+      EXTENSION_PAGE,
+    );
+    expect(local.data['grs:pat']).toBe(TOKEN);
+
+    await handler.handle({ channel: CHANNEL, type: 'auth-set', token: TOKEN }, EXTENSION_PAGE);
+    expect(local.data['grs:pat']).toBeUndefined();
+    expect(local.data['grs:pat-persist']).toBeUndefined();
   });
 
   it('notifies content tabs when authentication changes', async () => {
@@ -357,7 +401,7 @@ describe('authentication management', () => {
       fetchViewer: base.fetchViewer,
       cache: base.cache,
       settings: createSettingsStore(base.local),
-      tokens: createTokenStore(base.session),
+      tokens: createTokenStore(base.session, base.local),
       now: () => base.clock.now,
       extensionUrlPrefix: 'chrome-extension://ext/',
       notifyAuthChanged: notify,

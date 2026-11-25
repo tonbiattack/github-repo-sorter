@@ -1,6 +1,6 @@
 import { SORT_LABELS } from '../shared/labels';
 import { SORT_MODES } from '../shared/types';
-import type { Scope, SortMode } from '../shared/types';
+import type { Scope, SortMode, TypeFilter } from '../shared/types';
 
 export type Child = Node | string | null | undefined | false;
 
@@ -82,4 +82,49 @@ export function nativeTypeForScope(scope: Scope): string {
   if (scope === 'forks') return 'fork';
   if (scope === 'non-forks') return 'source';
   return '';
+}
+
+/**
+ * Maps GitHub's Type radio value to the extension's Type filter.
+ * Returns null for values the extension cannot honour from API data.
+ */
+export function typeFilterFromNative(value: string): TypeFilter | null {
+  switch (value) {
+    case '':
+      return 'all';
+    case 'fork':
+      return 'forks';
+    case 'source':
+      return 'non-forks';
+    case 'archived':
+      return 'archived';
+    case 'mirror':
+      return 'mirror';
+    case 'template':
+      return 'template';
+    default:
+      return null;
+  }
+}
+
+export function nativeTypeForFilter(type: TypeFilter): string {
+  switch (type) {
+    case 'forks':
+      return 'fork';
+    case 'non-forks':
+      return 'source';
+    case 'archived':
+      return 'archived';
+    case 'mirror':
+      return 'mirror';
+    case 'template':
+      return 'template';
+    default:
+      return '';
+  }
+}
+
+/** Compact label shown on the Sort button while a custom order is active. */
+export function sortButtonLabel(sort: SortMode): string {
+  return SORT_LABELS[sort];
 }

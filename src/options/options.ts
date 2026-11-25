@@ -10,6 +10,8 @@ function byId<T extends HTMLElement>(id: string): T {
 const statusElement = byId<HTMLParagraphElement>('status');
 const form = byId<HTMLFormElement>('token-form');
 const tokenInput = byId<HTMLInputElement>('token');
+const persistInput = byId<HTMLInputElement>('persist');
+const persistWarning = byId<HTMLParagraphElement>('persist-warning');
 const saveButton = byId<HTMLButtonElement>('save');
 const clearButton = byId<HTMLButtonElement>('clear');
 const clearCacheButton = byId<HTMLButtonElement>('clear-cache');
@@ -31,6 +33,10 @@ async function send(message: unknown): Promise<HandlerResponse | null> {
   }
 }
 
+function storageLabel(persistent: boolean): string {
+  return persistent ? 'ブラウザ再起動後も保持' : 'セッション中のみ保持';
+}
+
 async function refreshStatus(): Promise<void> {
   setStatus('確認中…');
   const response = await send({ channel: CHANNEL, type: 'auth-status' });
@@ -46,9 +52,12 @@ async function refreshStatus(): Promise<void> {
     setStatus('認証状態を確認できませんでした。', 'error');
     return;
   }
-  const { configured, login } = response.data;
+  const { configured, login, persistent } = response.data;
+  persistInput.checked = persistent;
+  persistWarning.hidden = !persistent;
+
   if (configured && login) {
-    setStatus(`設定済み: ${login} として認証されています（セッション中のみ保持）。`, 'ok');
+    setStatus(`設定済み: ${login} として認証されています（${storageLabel(persistent)}）。`, 'ok');
     return;
   }
   if (configured) {
@@ -57,6 +66,10 @@ async function refreshStatus(): Promise<void> {
   }
   setStatus('未設定: 公開リポジトリのみ取得します。', 'muted');
 }
+
+persistInput.addEventListener('change', () => {
+  persistWarning.hidden = !persistInput.checked;
+});
 
 form.addEventListener('submit', async (event) => {
   event.preventDefault();
@@ -68,7 +81,12 @@ form.addEventListener('submit', async (event) => {
 
   saveButton.disabled = true;
   setStatus('トークンを検証しています…');
-  const response = await send({ channel: CHANNEL, type: 'auth-set', token });
+  const response = await send({
+    channel: CHANNEL,
+    type: 'auth-set',
+    token,
+    ...(persistInput.checked ? { persist: true } : {}),
+  });
   saveButton.disabled = false;
 
   if (response === null) {
@@ -82,7 +100,7 @@ form.addEventListener('submit', async (event) => {
   if (response.kind === 'auth-status' && response.data.login) {
     tokenInput.value = '';
     setStatus(
-      `保存しました: ${response.data.login} として認証されています（セッション中のみ保持）。`,
+      `保存しました: ${response.data.login} として認証されています（${storageLabel(response.data.persistent)}）。`,
       'ok',
     );
     return;
@@ -99,7 +117,7 @@ clearButton.addEventListener('click', async () => {
     return;
   }
   await refreshStatus();
-  setStatus('トークンを解除しました。公開リポジトリのみ取得します。', 'muted');
+  setStatus('トークンを解除しました（保存済みのコピーも削除）。公開リポジトリのみ取得します。', 'muted');
 });
 
 clearCacheButton.addEventListener('click', async () => {

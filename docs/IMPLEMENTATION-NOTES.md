@@ -1,13 +1,45 @@
 # 実装メモ — 仕様との差異・判断・検証
 
-対象仕様: [SPEC.md](SPEC.md)（v0.2）
-対象 Issue: #1〜#6、#10（#7 Chrome Web Store 公開準備は対象外）
+対象仕様: [SPEC.md](SPEC.md)（v0.3）
+対象 Issue: #1〜#7、#10、#12〜#14
+
+## Issue #12〜#14・#7 の追加対応（v0.3）
+
+### #13 選択中ソート表示・Language/Visibility/Archived 対応
+
+- Sort ボタンの `summary` に選択中の並び順を `[data-grs-sort-label]` として追記し、標準 Sort を選ぶと要素ごと削除して GitHub の元の markup に戻す。ボタン幅は CSS で `max-width` を切り、狭い画面では 7em に縮める。
+- Type は API の `archived` / `is_template` / `mirror_url` から All / Forks / Sources / Archived / Mirrors / Templates を再現。`sponsorable` など API で判定できない値は `typeFilterFromNative` が `null` を返し、標準表示へ戻す。
+- Language は GitHub のメニュー値（小文字スラッグ）と API の表示名を `languageSlug` で正規化して照合（`Jupyter Notebook` ↔ `jupyter-notebook`）。Visibility は `private` フラグで判定。
+- すべてのフィルタは `filterRepos` でソート・ページ分割の前に適用する。設定は owner 単位で保存し、リロード後に GitHub のメニューへ反映する。
+
+### #12 トークンの永続保存（オプトイン）
+
+- 既定は従来どおり `chrome.storage.session` のみ。設定画面のチェックボックスを明示的に有効化した場合だけ `chrome.storage.local` にも保存する。
+- `chrome.storage.local` はディスク上に平文で残るため、設定画面に警告文を表示し、README と [PRIVACY.md](PRIVACY.md) にリスクを明記した。
+- 永続コピーがある状態でセッション領域が空になった場合（ブラウザ再起動後）は、`read()` が local から復元してセッションへ戻す。
+- 解除時は両方のコピーを削除する。オプトインなしで再保存した場合も、古い永続コピーを削除する。
+- 両ストレージ領域に `setAccessLevel({ accessLevel: 'TRUSTED_CONTEXTS' })` を適用し、content script から読めないようにした。
+- 推奨は fine-grained の `Metadata: Read`。クラシック `repo` スコープは書き込み権限を含むため「読み取り専用」と表現しない。
+
+### #14 表示差の縮小
+
+- 言語色は GitHub の主要言語の色をテーブルで持ち、未知の言語は中立色のドットにフォールバックする（色を捏造しない）。
+- Archived / Template / Mirror のラベルを追加。
+- Fork 元リンクは 1 リポジトリごとの追加 API 呼び出し（N+1）が必要なため取得しない。Star 操作は書込権限が必要なため実装しない。代わりに一覧下部へ「標準表示に切り替え」の案内を出し、偽のボタンは作らない。
+
+### #7 ストア公開準備
+
+- `scripts/make-icons.mjs` で 16/32/48/128px のアイコンを依存なしで生成（`npm run icons`）。
+- `scripts/package.mjs` で `release/github-repo-sorter-<version>.zip` を生成（`npm run package`）。`dist/` に実行時不要なファイルがあれば失敗する。
+- [PRIVACY.md](PRIVACY.md) に実装と一致するデータ取扱いを記載。[STORE-LISTING.md](STORE-LISTING.md) に掲載文案・権限理由・単一目的・提出チェックリストを用意。
+- README を英語主体に再構成し、日本語節を併記。
+- ライセンスは所有者の承認が必要なため未決定のまま。実際のストア提出・公開は未実施。
 
 ## Issue #10: GitHub 標準UIへの統合
 
 ユーザープロフィールの実DOMでは、検索フォーム `data-autosearch-results-container="user-repositories-list"` 内に `#type-options`、`#sort-options .SelectMenu-list` があり、一覧・GitHubのページャは兄弟の `#user-repositories-list` に収まっていた。Sort メニュー内にフォーム送信しない button を追加し、独自一覧の表示中だけ一覧要素を非表示にする。検索欄、Type、Sort、New 等の標準DOMは維持する。既知のDOMが揃わなければ推測せず標準表示のままにする。
 
-- 独自ソート中の Type は All / Forks / Sources に対応。Archived 等、Language、Visibility は GitHub 標準表示に切り替える。その他標準操作（Star ボタン、グラフ、Fork 元リンク）は独自一覧には再現せず、標準Sortの選択で使える。
+- 独自ソート中の Type は All / Forks / Sources / Archived / Mirrors / Templates に対応（v0.3 で拡張）。Language と Visibility も v0.3 で対応した。API で再現できない Type は標準表示に切り替える。その他標準操作（Star ボタン、グラフ、Fork 元リンク）は独自一覧には再現せず、標準Sortの選択で使える。
 - GitHub の検索欄は拡張一覧表示中のみ名前・説明の AND 検索として扱う。ロード中・エラー時は GitHub のイベントを妨げない。
 - GitHub 標準 Sort の明示的な選択と独自ソート設定は owner 単位で保存する。GitHub 標準フィルタが URL で明示されている場合、その操作を尊重し標準一覧で開始する。
 - 言語、Star数、Fork数はAPIから得られた場合のみ表示し、不明な値・未提供の操作を偽装しない。
@@ -16,7 +48,7 @@
 - 変更後スクリーンショット: [ライト](screenshots/issue-10-after-light.png) / [ダーク](screenshots/issue-10-after-dark.png)。
 - 2026-11-25 の Chromium 159 実ブラウザ検証（公開 316 件）: 全件順、ページング、Sort・Type の実クリック、検索、リロード、Turbo 相当のDOM差し替え、標準Sort復帰、ライト/ダークを確認。
 - 同検証（認証済み 699 件）: 全件順、owner不一致エラー、認証解除を確認。トークン解除後は未認証APIのレート制限で標準一覧にフォールバックした。非公開情報を含む認証済みスクリーンショットは保存しない。
-- Sort/Type ボタンには GitHub 自身が選択値を表示しない（`d-none`）ため、ボタンを広げる独自表示はせず、現在の並び順はステータス行に表示する。
+- Sort/Type ボタンには GitHub 自身が選択値を表示しない（`d-none`）ため、v0.3 では Sort ボタンに選択中の並び順だけを追記し、標準復帰時に削除する。Type/Language/Visibility は GitHub 標準の見た目のまま。
 
 ## 仕様との差異・明示した判断
 
@@ -62,16 +94,17 @@
 
 ### ユニットテスト
 
-`npm test` — 120 テスト / 8 ファイル。
+`npm test` — 147 テスト / 10 ファイル。
 
 - ソート: 受入シナリオ（B, A, C）、欠損・同値・Fork順・各ソートモード、入力非破壊、500件 < 100ms
-- フィルタ・ページング: 全件/Fork/非Fork、名前・説明の部分一致、AND、30件/ページ、範囲クランプ
-- API: Link 追跡、ID 重複排除、101件以上での Fork 順位、部分取得、401/403/429/5xx、Retry-After、リセット時刻、中止、ページ上限、不正ホスト
+- フィルタ・ページング: 全件/Fork/非Fork、Type（Archived/Mirror/Template）、Language スラッグ正規化、Visibility、名前・説明の部分一致、AND、30件/ページ、範囲クランプ
+- API: Link 追跡、ID 重複排除、101件以上での Fork 順位、部分取得、401/403/429/5xx、Retry-After、リセット時刻、中止、ページ上限、不正ホスト、archived/template/mirror の正規化
 - キャッシュ: TTL、キー分離、LRU 的追い出し
-- 設定・トークン: owner 別保存、sanitize、セッション保存、解除
-- プロトコル: URL 判定、owner 検証、メッセージ検証、進捗メッセージ検証
-- メッセージ処理: 送信元検証、owner 照合、キャッシュ利用/強制更新、認証 owner 不一致、認証操作の権限、中止、部分取得の非キャッシュ
-- 描画（jsdom）: パネル、行、バッジ、日時、ページャ、空・エラー・読込・部分取得、HTML 非解釈、標準表示、ネイティブ一覧の特定と非表示・復元
+- 設定・トークン: owner 別保存、sanitize、セッション保存、永続オプトイン、再起動後の復元、解除で両方削除
+- プロトコル: URL 判定、owner 検証、メッセージ検証、進捗メッセージ検証、persist フラグ
+- メッセージ処理: 送信元検証、owner 照合、キャッシュ利用/強制更新、認証 owner 不一致、認証操作の権限、中止、部分取得の非キャッシュ、永続保存の切替
+- 描画（jsdom）: 行、バッジ、言語色、日時、ページャ、空・エラー・読込・部分取得、HTML 非解釈、標準表示への案内、ネイティブ一覧の特定と非表示・復元
+- 統合（jsdom）: Sort メニュー挿入の冪等性、標準 Sort への切替と復帰、Type/Language/Visibility 連動、検索の全件適用、DOM 差し替え後の重複防止、取得失敗時の標準一覧維持、認証変更時の非公開データ破棄、URL パラメータ除去、Sort ボタンの選択中表示
 
 ### 実ブラウザ検証
 
@@ -80,16 +113,19 @@
 - 316 件・4 ページを取得し、Node 側で独立に計算した期待順と画面の 30 件が一致
 - 2ページ目が 31–60 件、検索が全件に対して適用され、Fork順・標準表示・復帰が動作
 - リロード後も owner 別設定が復元される
-- ライト `rgb(255, 255, 255)` / ダーク `rgb(13, 17, 23)` でパネル背景が切り替わる
+- ライト `rgb(255, 255, 255)` / ダーク `rgb(13, 17, 23)` で背景が切り替わる
 - 認証あり: 699 件（Private バッジあり）、解除後 316 件。トークンはページのストレージに現れない
 
 ### 未検証・制約
 
 - 組織プロフィールの実ブラウザ検証（DOM 構造のみ確認）
 - Edge での動作（Chromium ベースのため動作する見込みだが未確認）
-- Chrome Web Store の審査要件・掲載情報・アイコン（Issue #7）
+- Chrome Web Store への実際の提出・公開（文案と ZIP は用意済み、所有者の承認待ち）
+- ライセンス未決定（所有者の承認が必要）
+- プロモ画像（440×280 / 1400×560）は未作成
 - 複数タブで同時に開いた場合の設定競合（owner 単位の保存が最後の操作で上書きされる）
 - fine-grained トークンでの実取得（クラシックトークンの `repo` スコープで確認）
+- 永続保存したトークンの再起動後復元はユニットテストで確認。実ブラウザでの再起動検証は未実施
 
 ## 開発上の注意
 
