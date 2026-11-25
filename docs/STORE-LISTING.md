@@ -161,30 +161,25 @@ GitHub 標準の Sort は「Last updated / Name / Stars」のみです。この�
 「収集」の定義は開発者のサーバーへの送信に限らないため、ブラウザ内保存も
 プライバシーポリシーに明記する（[PRIVACY.md](PRIVACY.md) に記載済み）。
 
-## ライセンス判断資料（#19）
+## ライセンス（MIT で確定、2026-11-25）
 
-**ストア公開にオープンソースライセンスは必須ではない。** Chrome Web Store は
-ライセンスの有無を公開要件にしていない。ライセンスは利用者への権利付与と
-再利用条件を決める別の判断であり、所有者の承認が必要。
+**MIT ライセンスを採用する**（所有者の承認済み）。`LICENSE` を追加し、
+`package.json` の `license` フィールドと README を更新した。
 
-| 候補 | 適合 | 注意点 |
+| 候補 | 適合 | 採用 |
 | --- | --- | --- |
-| **MIT（第一候補）** | 拡張公開で最も一般的。短く、依存（MIT / Apache-2.0）と矛盾しない | 無保証・責任限定の条項をそのまま残す |
-| Apache-2.0 | 特許条項と変更表示を含む。企業利用で好まれることがある | `NOTICE` の運用が必要 |
-| ISC | MIT とほぼ同等でより短い | 認知度が低く、特許条項は無い |
+| **MIT** | 拡張公開で一般的。依存（MIT / Apache-2.0）と矛盾しない | **採用** |
+| Apache-2.0 | 特許条項と変更表示を含む | 不採用 |
+| ISC | MIT とほぼ同等でより短い | 不採用 |
 
-依存ライセンス（2026-11-25 確認）: `esbuild` MIT、`typescript` Apache-2.0、
-`vitest` MIT、`jsdom` MIT、`@types/chrome` MIT、`@types/node` MIT。
-いずれも devDependencies で、配布 ZIP に同梱されない。
-
-採択する場合の手順（承認後）:
-
-1. `LICENSE` を追加（MIT なら著作権者名と年を記入）。
-2. `package.json` に `"license": "MIT"` を追加。
-3. README の「No license has been chosen yet」を更新。
-4. 必要なら GitHub の About の License を設定。
-
-承認が得られない間は「未決定」と明記する（現状）。無断で付与しない。
+- ストア公開に OSS ライセンスは必須ではないが、利用者への権利付与を明確にするため MIT を付与する。
+- 著作権者: `tonbiattack`、年: 2026。
+- 依存ライセンス（2026-11-25 確認）: `esbuild` MIT、`typescript` Apache-2.0、
+  `vitest` MIT、`jsdom` MIT、`@types/chrome` MIT、`@types/node` MIT。いずれも
+  devDependencies で、配布 ZIP に同梱されない。実行時に同梱される第三者コードは
+  ないため、追加の NOTICE は不要。
+- `package.json` は `private: true` のまま（誤った npm publish を防ぐため）。
+  これは MIT ライセンスと両立する。
 
 ## 秘密情報・個人情報の確認（2026-11-25）
 
@@ -260,6 +255,7 @@ treating creation, forks, and pushes as the same kind of activity.
 - [x] 掲載文案（英語・日本語）、単一目的、権限理由、データ申告案
 - [x] プライバシーポリシー（実装と一致、公開 URL あり）
 - [x] プロモ画像は任意であることを確認（未作成でも提出可能）
+- [x] MIT ライセンスを付与（`LICENSE` / `package.json` / README）
 
 ### ビルド・配布
 
@@ -279,16 +275,13 @@ treating creation, forks, and pushes as the same kind of activity.
 
 ### 所有者が行う操作
 
-- [ ] ライセンスの採択（MIT を第一候補として承認または見送り）
+- [x] ライセンスの採択（MIT で確定）
 - [ ] ストアの掲載文・画像の最終確認
 - [ ] ストアへのアップロード・審査提出・公開
 - [ ] 公開後のストア URL を README と About に追記
 
 ## 未解決事項
 
-- ライセンスは未決定（所有者の承認が必要）。ストア公開に OSS ライセンスは必須では
-  ないため、未決定のまま公開することも可能。依存はすべて devDependencies で、
-  実行時に同梱される第三者コードはない。
 - プロモ画像（440×280 / 1400×560）は未作成。任意だが、マーキー枠への掲載には必要。
 - プライバシーポリシーはリポジトリ内の `docs/PRIVACY.md` にあり、ストアには
   その公開 URL を登録する。

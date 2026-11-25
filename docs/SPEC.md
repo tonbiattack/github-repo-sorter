@@ -29,7 +29,7 @@ TypeScript + MV3 content script + service worker + 素のDOM/CSSを初期案と�
 GitHubのTurbo遷移やDOM差し替えを考慮し、冪等なUI挿入・解除と古い取得結果の破棄を実装する。
 
 ## 配布
-Chrome Web Store で公開できる状態を目標とする。アイコン、プライバシーポリシー、掲載文案、再現可能なビルドと配布ZIP生成を用意する。実際の提出・公開は所有者の承認後に行う。GitHub 公式と誤認されない表記にする。
+Chrome Web Store で公開できる状態を目標とする。アイコン、プライバシーポリシー、掲載文案、再現可能なビルドと配布ZIP生成を用意する。実際の提出・公開は所有者の承認後に行う。GitHub 公式と誤認されない表記にする。ライセンスは MIT とし、`LICENSE`・`package.json`・README を一致させる。
 
 ## 受入基準
 - 昨日PushしたA、今日ForkしたB（元のPush日時は先月）、一昨日作成したCの順がB,A,Cになる（Cに新しいPushがない場合）。
