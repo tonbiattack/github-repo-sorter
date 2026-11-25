@@ -123,6 +123,10 @@ describe('parseRequest', () => {
     expect(parseRequest({ channel: CHANNEL, type: 'settings-set', owner: 'owner', settings: 'x' })).toBeNull();
   });
 
+  it('retains the selected standard view in settings messages', () => {
+    expect(parseRequest({ channel: CHANNEL, type: 'settings-set', owner: 'owner', settings: { sort: 'activity', scope: 'all', view: 'standard' } })).toMatchObject({ settings: { view: 'standard' } });
+  });
+
   it('validates token length for auth-set', () => {
     expect(parseRequest({ channel: CHANNEL, type: 'auth-set', token: 'short' })).toBeNull();
     expect(

@@ -75,6 +75,14 @@ describe('normalizeRepo', () => {
     expect(normalizeRepo(apiRepo(7, { name: undefined }))).toBeNull();
   });
 
+  it('preserves valid API language and counts without inventing missing values', () => {
+    const repo = normalizeRepo(apiRepo(7, { language: 'TypeScript', stargazers_count: 17, forks_count: 0 }));
+    expect(repo).toMatchObject({ language: 'TypeScript', stars: 17, forks: 0 });
+    const invalid = normalizeRepo(apiRepo(8, { language: 12, stargazers_count: -1, forks_count: '3' }));
+    expect(invalid).toMatchObject({ language: null, stars: null, forks: null });
+    expect(normalizeRepo(apiRepo(9))).toMatchObject({ language: null, stars: null, forks: null });
+  });
+
   it('keeps null dates as null', () => {
     const repo = normalizeRepo(apiRepo(7, { created_at: 'nonsense', pushed_at: null }));
     expect(repo?.createdAt).toBeNull();

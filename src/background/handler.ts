@@ -38,6 +38,8 @@ export interface HandlerDeps {
   readonly extensionUrlPrefix: string;
   readonly notifyProgress?: (progress: ProgressEvent) => void;
   readonly openOptions?: () => void;
+  /** Notify live content scripts when token context changes. Never includes the token. */
+  readonly notifyAuthChanged?: () => void;
 }
 
 export interface MessageHandler {
@@ -84,11 +86,21 @@ export function createMessageHandler(deps: HandlerDeps): MessageHandler {
   const controllers = new Map<string, AbortController>();
   const inFlight = new Map<string, Promise<FetchData>>();
   const identities = new Map<string, { viewer: Viewer; storedAt: number }>();
+  let authRevision = 0;
+  let authMutations: Promise<void> = Promise.resolve();
+
+  function serializeAuth<T>(operation: () => Promise<T>): Promise<T> {
+    const result = authMutations.then(operation);
+    authMutations = result.then(() => undefined, () => undefined);
+    return result;
+  }
 
   async function resolveIdentity(token: string): Promise<Viewer> {
     const cached = identities.get(token);
     if (cached && deps.now() - cached.storedAt < IDENTITY_TTL_MS) return cached.viewer;
+    const revision = authRevision;
     const viewer = await deps.fetchViewer({ token });
+    if (revision !== authRevision) throw new AbortError();
     identities.set(token, { viewer, storedAt: deps.now() });
     return viewer;
   }
@@ -102,7 +114,10 @@ export function createMessageHandler(deps: HandlerDeps): MessageHandler {
       return fail({ kind: 'forbidden', message: 'リクエストのオーナーがページと一致しません。' });
     }
 
+    await authMutations;
+    const revision = authRevision;
     const token = await deps.tokens.read();
+    if (revision !== authRevision) return fail({ kind: 'aborted', message: '認証状態が変更されました。' });
     const mode: AuthMode =
       request.authMode === 'public' ? 'public' : token === null ? 'public' : 'authenticated';
 
@@ -129,6 +144,7 @@ export function createMessageHandler(deps: HandlerDeps): MessageHandler {
       }
     }
 
+    if (revision !== authRevision) return fail({ kind: 'aborted', message: '認証状態が変更されました。' });
     const key = repoCacheKey(request.owner, { mode, login });
     if (request.force) deps.cache.invalidate(key);
 
@@ -147,7 +163,9 @@ export function createMessageHandler(deps: HandlerDeps): MessageHandler {
       const shared = inFlight.get(key);
       if (shared) {
         try {
-          return { ok: true, kind: 'fetch', data: await shared };
+          const data = await shared;
+          if (revision !== authRevision) throw new AbortError();
+          return { ok: true, kind: 'fetch', data };
         } catch (error) {
           return fail(toErrorInfo(error));
         }
@@ -172,6 +190,7 @@ export function createMessageHandler(deps: HandlerDeps): MessageHandler {
         },
       });
 
+      if (revision !== authRevision || controller.signal.aborted) throw new AbortError();
       const data: FetchData = {
         owner: request.owner,
         authMode: mode,
@@ -194,13 +213,14 @@ export function createMessageHandler(deps: HandlerDeps): MessageHandler {
 
     try {
       const data = await task;
+      if (revision !== authRevision) throw new AbortError();
       if (data.repos.length === 0 && data.error !== null) return fail(data.error);
       return { ok: true, kind: 'fetch', data };
     } catch (error) {
       return fail(toErrorInfo(error));
     } finally {
       controllers.delete(request.requestId);
-      inFlight.delete(key);
+      if (inFlight.get(key) === task) inFlight.delete(key);
     }
   }
 
@@ -224,22 +244,36 @@ export function createMessageHandler(deps: HandlerDeps): MessageHandler {
   }
 
   async function handleAuthSet(token: string): Promise<HandlerResponse> {
+    const revision = authRevision;
     let viewer: Viewer;
     try {
       viewer = await deps.fetchViewer({ token });
     } catch (error) {
       return fail(toErrorInfo(error));
     }
+    if (revision !== authRevision) return fail({ kind: 'aborted', message: '認証状態が変更されました。' });
+    authRevision += 1;
+    for (const controller of controllers.values()) controller.abort();
+    controllers.clear();
+    inFlight.clear();
     await deps.tokens.write(token);
+    if (revision + 1 !== authRevision) return fail({ kind: 'aborted', message: '認証状態が変更されました。' });
+    identities.clear();
     identities.set(token, { viewer, storedAt: deps.now() });
     deps.cache.clear();
+    deps.notifyAuthChanged?.();
     return { ok: true, kind: 'auth-status', data: { configured: true, login: viewer.login } };
   }
 
   async function handleAuthClear(): Promise<HandlerResponse> {
+    authRevision += 1;
+    for (const controller of controllers.values()) controller.abort();
+    controllers.clear();
+    inFlight.clear();
     await deps.tokens.clear();
     identities.clear();
     deps.cache.clear();
+    deps.notifyAuthChanged?.();
     return operation();
   }
 
@@ -286,14 +320,14 @@ export function createMessageHandler(deps: HandlerDeps): MessageHandler {
         if (!requireExtension()) {
           return fail({ kind: 'forbidden', message: '認証情報を設定する権限がありません。' });
         }
-        return handleAuthSet(request.token);
+        return serializeAuth(() => handleAuthSet(request.token));
       }
 
       case 'auth-clear': {
         if (!requireExtension()) {
           return fail({ kind: 'forbidden', message: '認証情報を解除する権限がありません。' });
         }
-        return handleAuthClear();
+        return serializeAuth(handleAuthClear);
       }
 
       case 'cache-clear': {

@@ -1,4 +1,4 @@
-# GitHub Repo Sorter 仕様書 v0.1
+# GitHub Repo Sorter 仕様書 v0.2
 
 ## 目的
 GitHubのリポジトリ一覧で、新規作成・Fork・Pushを同じ活動として扱い、最近触ったリポジトリを素早く見つける。独立した軽量Chrome拡張とし、ローカルサーバー不要。
@@ -7,11 +7,11 @@ GitHubのリポジトリ一覧で、新規作成・Fork・Pushを同じ活動と
 Chrome/Edge (Manifest V3)。初期対象は github.com/{owner}?tab=repositories。ログイン中の自分の非公開リポジトリも、明示的に認証した場合に対象とする。組織一覧・ダッシュボードは将来対応。
 
 ## 機能
-- GitHub標準一覧に隣接する拡張専用ソートUI。「作成・Fork・Push順」を初期値とし、作成順、Fork順（Forkのみ）、Push順、情報更新順、標準表示に切替。
-- 全件/Forkのみ/非Forkのみ、名前・説明の部分一致検索。検索・フィルタは全取得済みデータに適用してからページ分割（30件/ページ）。
-- 各行に名前、リンク、説明、公開範囲、Fork表示、最新活動日時と種別を表示。GitHub標準の外観・ダークモードに馴染ませる。
-- 設定を owner 単位で chrome.storage.local に保存。標準表示への復帰、手動再取得、取得時刻表示。
-- 初回取得中・空・エラー・部分取得を明示。元のGitHub一覧は壊さず、失敗時に戻せる。
+- GitHub標準のSortメニューに「作成・Fork・Push順」（初期値）、作成順、Fork順、Push順、情報更新順を追加。GitHub標準Sort項目を選べば元の一覧に戻す。独自パネルや重複する検索・フィルタ欄は設置しない。
+- 標準TypeのAll/Forks/Sources、標準検索欄の名前・説明の部分一致を全取得済みデータに適用してからページ分割（30件/ページ）。未対応のGitHubフィルタを選んだときは標準表示へ戻す。
+- APIから取得可能な名前、リンク、説明、言語、Star・Fork数、公開範囲、Fork表示、選択した日時を表示。取得できないGitHub標準操作は偽装しない。GitHub標準の外観・ダークモードに馴染ませる。
+- 設定（ソート・Type・標準表示）を owner 単位で chrome.storage.local に保存。標準表示への復帰、手動再取得、取得時刻・公開/認証済みの範囲を表示。
+- 初回取得中・空・エラー・部分取得を明示。元のGitHub一覧は壊さず、取得中・失敗時は標準一覧を利用可能にする。DOM構造が合わない場合は拡張を挿入せず標準表示とする。
 
 ## ソート定義
 REST API の created_at、pushed_at、updated_at、fork、id を使用。Fork日時はFork先の created_at とする。統合活動日時 = max(created_at, pushed_at)。updated_at は説明変更などを含むため統合には使わない。無効/欠損の日時は除外し、全欠損は末尾。同値は full_name の昇順、最後に id。日時はUTCで比較し表示はローカル時刻。Fork直後に pushed_at が過去でも created_at で上位に来る。pushed_at は本人のPushだけを保証しない（同期・他者によるPushも含み得る）。Fork日時とAPIの挙動は実データで確認する。

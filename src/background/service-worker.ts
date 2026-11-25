@@ -51,6 +51,15 @@ const handler = createMessageHandler({
   openOptions: () => {
     void chrome.runtime.openOptionsPage();
   },
+  notifyAuthChanged: () => {
+    void chrome.tabs.query({ url: 'https://github.com/*' }).then((tabs) => {
+      for (const tab of tabs) {
+        if (tab.id !== undefined) {
+          void chrome.tabs.sendMessage(tab.id, { channel: CHANNEL, type: 'auth-changed' }).catch(() => undefined);
+        }
+      }
+    }).catch(() => undefined);
+  },
 });
 
 chrome.action.onClicked.addListener(() => {

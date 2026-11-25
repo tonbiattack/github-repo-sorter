@@ -1,7 +1,22 @@
 # 実装メモ — 仕様との差異・判断・検証
 
-対象仕様: [SPEC.md](SPEC.md)（v0.1）
-対象 Issue: #1〜#6（#7 Chrome Web Store 公開準備は対象外）
+対象仕様: [SPEC.md](SPEC.md)（v0.2）
+対象 Issue: #1〜#6、#10（#7 Chrome Web Store 公開準備は対象外）
+
+## Issue #10: GitHub 標準UIへの統合
+
+ユーザープロフィールの実DOMでは、検索フォーム `data-autosearch-results-container="user-repositories-list"` 内に `#type-options`、`#sort-options .SelectMenu-list` があり、一覧・GitHubのページャは兄弟の `#user-repositories-list` に収まっていた。Sort メニュー内にフォーム送信しない button を追加し、独自一覧の表示中だけ一覧要素を非表示にする。検索欄、Type、Sort、New 等の標準DOMは維持する。既知のDOMが揃わなければ推測せず標準表示のままにする。
+
+- 独自ソート中の Type は All / Forks / Sources に対応。Archived 等、Language、Visibility は GitHub 標準表示に切り替える。その他標準操作（Star ボタン、グラフ、Fork 元リンク）は独自一覧には再現せず、標準Sortの選択で使える。
+- GitHub の検索欄は拡張一覧表示中のみ名前・説明の AND 検索として扱う。ロード中・エラー時は GitHub のイベントを妨げない。
+- GitHub 標準 Sort の明示的な選択と独自ソート設定は owner 単位で保存する。GitHub 標準フィルタが URL で明示されている場合、その操作を尊重し標準一覧で開始する。
+- 言語、Star数、Fork数はAPIから得られた場合のみ表示し、不明な値・未提供の操作を偽装しない。
+- 以下の表・検証記録は Issue #10 より前の MVP の履歴。パネル、組織対応、設定保存等に関してはこの節と v0.2 を優先する。
+- 変更前スクリーンショット: [ライト](screenshots/issue-10-before-light.png) / [ダーク](screenshots/issue-10-before-dark.png)。
+- 変更後スクリーンショット: [ライト](screenshots/issue-10-after-light.png) / [ダーク](screenshots/issue-10-after-dark.png)。
+- 2026-11-25 の Chromium 159 実ブラウザ検証（公開 316 件）: 全件順、ページング、Sort・Type の実クリック、検索、リロード、Turbo 相当のDOM差し替え、標準Sort復帰、ライト/ダークを確認。
+- 同検証（認証済み 699 件）: 全件順、owner不一致エラー、認証解除を確認。トークン解除後は未認証APIのレート制限で標準一覧にフォールバックした。非公開情報を含む認証済みスクリーンショットは保存しない。
+- Sort/Type ボタンには GitHub 自身が選択値を表示しない（`d-none`）ため、ボタンを広げる独自表示はせず、現在の並び順はステータス行に表示する。
 
 ## 仕様との差異・明示した判断
 

@@ -11,12 +11,18 @@ describe('sanitizeSettings', () => {
     expect(sanitizeSettings({ sort: 'nope', scope: 42 })).toEqual(DEFAULT_SETTINGS);
   });
 
+  it('restores an explicit standard view', () => {
+    expect(sanitizeSettings({ sort: 'activity', scope: 'all', view: 'standard' }).view).toBe('standard');
+    expect(sanitizeSettings({ sort: 'activity', scope: 'all', view: 'bad' }).view).toBe('sorter');
+  });
+
   it('keeps valid fields and replaces only invalid ones', () => {
-    expect(sanitizeSettings({ sort: 'created' })).toEqual({ sort: 'created', scope: 'all' });
-    expect(sanitizeSettings({ scope: 'forks' })).toEqual({ sort: 'activity', scope: 'forks' });
+    expect(sanitizeSettings({ sort: 'created' })).toEqual({ sort: 'created', scope: 'all', view: 'sorter' });
+    expect(sanitizeSettings({ scope: 'forks' })).toEqual({ sort: 'activity', scope: 'forks', view: 'sorter' });
     expect(sanitizeSettings({ sort: 'pushed', scope: 'non-forks' })).toEqual({
       sort: 'pushed',
       scope: 'non-forks',
+      view: 'sorter',
     });
   });
 });
@@ -37,17 +43,17 @@ describe('createSettingsStore', () => {
     const area = memoryArea();
     const store = createSettingsStore(area);
 
-    await store.write('Owner', { sort: 'created', scope: 'forks' });
-    expect(area.data[settingsKey('owner')]).toEqual({ sort: 'created', scope: 'forks' });
+    await store.write('Owner', { sort: 'created', scope: 'forks', view: 'sorter' });
+    expect(area.data[settingsKey('owner')]).toEqual({ sort: 'created', scope: 'forks', view: 'sorter' });
 
-    await expect(store.read('owner')).resolves.toEqual({ sort: 'created', scope: 'forks' });
+    await expect(store.read('owner')).resolves.toEqual({ sort: 'created', scope: 'forks', view: 'sorter' });
     await expect(store.read('other')).resolves.toEqual(DEFAULT_SETTINGS);
   });
 
   it('sanitizes values written by an older version', async () => {
     const area = memoryArea({ [settingsKey('owner')]: { sort: 'removed-mode', scope: 'forks' } });
     const store = createSettingsStore(area);
-    await expect(store.read('owner')).resolves.toEqual({ sort: 'activity', scope: 'forks' });
+    await expect(store.read('owner')).resolves.toEqual({ sort: 'activity', scope: 'forks', view: 'sorter' });
   });
 });
 

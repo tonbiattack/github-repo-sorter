@@ -5,11 +5,14 @@ import type { Scope, SortMode } from './types';
 export interface SorterSettings {
   readonly sort: SortMode;
   readonly scope: Scope;
+  /** Explicit standard selection survives reload; older settings default to the extension. */
+  readonly view: 'sorter' | 'standard';
 }
 
 export const DEFAULT_SETTINGS: SorterSettings = Object.freeze({
   sort: 'activity',
   scope: 'all',
+  view: 'sorter',
 });
 
 export const SETTINGS_KEY_PREFIX = 'grs:settings:';
@@ -33,5 +36,6 @@ export function sanitizeSettings(raw: unknown): SorterSettings {
   return {
     sort: isSortMode(record.sort) ? record.sort : DEFAULT_SETTINGS.sort,
     scope: isScope(record.scope) ? record.scope : DEFAULT_SETTINGS.scope,
+    view: record.view === 'standard' ? 'standard' : 'sorter',
   };
 }
