@@ -232,18 +232,23 @@ export function createMessageHandler(deps: HandlerDeps): MessageHandler {
 
   async function handleAuthStatus(): Promise<HandlerResponse> {
     const token = await deps.tokens.read();
+    const persistent = await deps.tokens.isPersistent();
     if (token === null) {
-      return { ok: true, kind: 'auth-status', data: { configured: false, login: null } };
+      return { ok: true, kind: 'auth-status', data: { configured: false, login: null, persistent } };
     }
     try {
       const viewer = await resolveIdentity(token);
-      return { ok: true, kind: 'auth-status', data: { configured: true, login: viewer.login } };
+      return {
+        ok: true,
+        kind: 'auth-status',
+        data: { configured: true, login: viewer.login, persistent },
+      };
     } catch (error) {
       return fail(toErrorInfo(error));
     }
   }
 
-  async function handleAuthSet(token: string): Promise<HandlerResponse> {
+  async function handleAuthSet(token: string, persist: boolean): Promise<HandlerResponse> {
     const revision = authRevision;
     let viewer: Viewer;
     try {
@@ -256,13 +261,17 @@ export function createMessageHandler(deps: HandlerDeps): MessageHandler {
     for (const controller of controllers.values()) controller.abort();
     controllers.clear();
     inFlight.clear();
-    await deps.tokens.write(token);
+    await deps.tokens.write(token, { persist });
     if (revision + 1 !== authRevision) return fail({ kind: 'aborted', message: '認証状態が変更されました。' });
     identities.clear();
     identities.set(token, { viewer, storedAt: deps.now() });
     deps.cache.clear();
     deps.notifyAuthChanged?.();
-    return { ok: true, kind: 'auth-status', data: { configured: true, login: viewer.login } };
+    return {
+      ok: true,
+      kind: 'auth-status',
+      data: { configured: true, login: viewer.login, persistent: persist },
+    };
   }
 
   async function handleAuthClear(): Promise<HandlerResponse> {
@@ -320,7 +329,7 @@ export function createMessageHandler(deps: HandlerDeps): MessageHandler {
         if (!requireExtension()) {
           return fail({ kind: 'forbidden', message: '認証情報を設定する権限がありません。' });
         }
-        return serializeAuth(() => handleAuthSet(request.token));
+        return serializeAuth(() => handleAuthSet(request.token, request.persist === true));
       }
 
       case 'auth-clear': {

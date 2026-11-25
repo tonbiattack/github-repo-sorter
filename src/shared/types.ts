@@ -19,6 +19,12 @@ export interface Repo {
   readonly stars: number | null;
   /** Fork count; null when the API omitted or reported an invalid value. */
   readonly forks: number | null;
+  /** Archived repositories are read-only on GitHub. */
+  readonly archived: boolean;
+  /** Template repositories can be used to create new repositories. */
+  readonly template: boolean;
+  /** Mirrors are hosted elsewhere; GitHub shows them separately. */
+  readonly mirror: boolean;
   readonly createdAt: string | null;
   readonly pushedAt: string | null;
   readonly updatedAt: string | null;
@@ -29,6 +35,16 @@ export interface Repo {
 export type SortMode = 'activity' | 'created' | 'forked' | 'pushed' | 'updated';
 
 export type Scope = 'all' | 'forks' | 'non-forks';
+
+/**
+ * GitHub's Type menu values the extension can honour from API data.
+ * `archived`, `mirror` and `template` are single-value filters on GitHub;
+ * the extension treats them as additional constraints on the current scope.
+ */
+export type TypeFilter = 'all' | 'forks' | 'non-forks' | 'archived' | 'mirror' | 'template';
+
+/** GitHub's Visibility menu values. Public listings only ever contain public rows. */
+export type VisibilityFilter = 'all' | 'public' | 'private';
 
 /** Which timestamp produced the integrated activity date. */
 export type ActivityKind = 'push' | 'create' | 'fork' | 'unknown';
@@ -66,3 +82,14 @@ export const SORT_MODES: readonly SortMode[] = [
 ] as const;
 
 export const SCOPES: readonly Scope[] = ['all', 'forks', 'non-forks'] as const;
+
+export const TYPE_FILTERS: readonly TypeFilter[] = [
+  'all',
+  'forks',
+  'non-forks',
+  'archived',
+  'mirror',
+  'template',
+] as const;
+
+export const VISIBILITY_FILTERS: readonly VisibilityFilter[] = ['all', 'public', 'private'] as const;

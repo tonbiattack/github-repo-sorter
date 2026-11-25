@@ -2,6 +2,24 @@
 [data-grs-hidden='true'] { display: none !important; }
 
 #sort-options[data-grs-custom-active='true'] .SelectMenu-list > label .SelectMenu-icon--check { visibility: hidden; }
+
+/* Compact active-sort label inside GitHub's own Sort button. */
+#sort-options summary[data-grs-sort-active='true'] { max-width: 100%; }
+.grs-sort-label {
+  display: inline-block;
+  max-width: 12em;
+  margin-left: 4px;
+  overflow: hidden;
+  color: var(--fgColor-accent, #0969da);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  vertical-align: bottom;
+  white-space: nowrap;
+}
+@media (max-width: 767px) {
+  .grs-sort-label { max-width: 7em; }
+}
+
 .grs-menu-heading {
   padding: 8px 16px 4px;
   border-top: 1px solid var(--borderColor-muted, #d1d9e0);
@@ -22,7 +40,12 @@
 .grs-action { margin-left: 4px; }
 .grs-list { margin: 0; padding: 0; list-style: none; }
 .grs-repo__name { font-size: 20px; font-weight: 600; }
+.grs-repo__labels { display: inline-flex; flex-wrap: wrap; gap: 4px; vertical-align: middle; }
 .grs-repo__desc { margin-top: 8px; overflow-wrap: anywhere; }
-.grs-repo__meta { display: flex; flex-wrap: wrap; gap: 4px 0; }
+.grs-repo__meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 0; }
+.grs-repo__language { display: inline-flex; align-items: center; }
+.grs-language-dot { display: inline-block; width: 12px; height: 12px; margin-right: 4px; border-radius: 50%; }
+.grs-language-dot--unknown { background-color: var(--fgColor-muted, #59636e); opacity: 0.4; }
 .grs-pager { display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 12px; }
+.grs-hint { margin: 12px 0 0; padding-top: 8px; border-top: 1px solid var(--borderColor-muted, #d1d9e0); }
 .grs-empty { padding: 32px 0; }

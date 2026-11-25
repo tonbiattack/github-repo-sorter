@@ -30,11 +30,17 @@ const staticFiles = [
   ['src/options/options.css', 'options.css'],
 ];
 
+const iconFiles = ['icon-16.png', 'icon-32.png', 'icon-48.png', 'icon-128.png'];
+
 const manifestVersion = JSON.parse(await readFile(path.join(root, 'package.json'), 'utf8')).version;
 
 async function copyStatic() {
   for (const [from, to] of staticFiles) {
     await cp(path.join(root, from), path.join(outDir, to));
+  }
+  await mkdir(path.join(outDir, 'icons'), { recursive: true });
+  for (const icon of iconFiles) {
+    await cp(path.join(root, 'icons', icon), path.join(outDir, 'icons', icon));
   }
   // Keep the manifest version in sync with package.json.
   const manifestPath = path.join(outDir, 'manifest.json');

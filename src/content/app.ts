@@ -2,9 +2,14 @@ import { CHANNEL, isProgressMessage, parseRepoListUrl } from '../shared/protocol
 import type { FetchData, FetchRequest, HandlerResponse, Request } from '../shared/protocol';
 import { DEFAULT_SETTINGS, isSortMode, sanitizeSettings } from '../shared/settings';
 import type { SorterSettings } from '../shared/settings';
-import type { AuthMode, FetchErrorInfo, Scope, SortMode } from '../shared/types';
-import { addSortItems, nativeTypeForScope, scopeFromNative } from './dom';
-import { locateNativeList, removeStalePanels, setNativeHidden } from './native';
+import type { AuthMode, FetchErrorInfo, SortMode, TypeFilter, VisibilityFilter } from '../shared/types';
+import {
+  addSortItems,
+  nativeTypeForFilter,
+  sortButtonLabel,
+  typeFilterFromNative,
+} from './dom';
+import { checkedValue, locateNativeList, removeStalePanels, selectValue, setNativeHidden } from './native';
 import type { NativeListRef } from './native';
 import { renderListContent } from './render';
 
@@ -17,11 +22,6 @@ interface AppState {
   loading: boolean;
   progress: { page: number; received: number } | null;
   error: FetchErrorInfo | null;
-}
-
-function hasUnsupportedFilters(native: NativeListRef): boolean {
-  return [...native.form.querySelectorAll<HTMLInputElement>('input[name="language"]:checked, input[name="visibility"]:checked')]
-    .some((input) => input.value !== '');
 }
 
 const SEARCH_DEBOUNCE_MS = 120;
@@ -135,7 +135,17 @@ export class SorterApp {
       this.detachNative();
       return;
     }
-    if (this.native?.form !== found.form || this.native.list !== found.list || this.native.sortList !== found.sortList || this.native.type !== found.type || this.native.search !== found.search || !this.mountElement?.isConnected) {
+    const changed =
+      this.native?.form !== found.form ||
+      this.native.list !== found.list ||
+      this.native.sortList !== found.sortList ||
+      this.native.type !== found.type ||
+      this.native.search !== found.search ||
+      this.native.language !== found.language ||
+      this.native.visibility !== found.visibility ||
+      !this.mountElement?.isConnected;
+
+    if (changed) {
       const replacingExisting = this.native !== null;
       const formChanged = replacingExisting && this.native?.form !== found.form;
       this.detachNative();
@@ -147,35 +157,50 @@ export class SorterApp {
       this.mountElement = mount;
       addSortItems(found.sortList, state.settings.view === 'standard' ? null : state.settings.sort);
       this.bindNative(found, mount);
-      if (formChanged) {
-        const selectedType = found.type.querySelector<HTMLInputElement>('input[name="type"]:checked');
-        const incomingScope = scopeFromNative(selectedType?.value ?? '');
-        if (state.settings.view !== 'standard' && (incomingScope === null || hasUnsupportedFilters(found))) {
-          state.settings = { ...state.settings, view: 'standard' };
-          state.data = null;
-          this.cancelRequest();
-          state.loading = false;
-        } else if (incomingScope !== null) {
-          state.settings = { ...state.settings, scope: incomingScope };
-        }
-      }
+      if (formChanged) this.adoptNativeFilters(found);
       this.readNativeFilters(found);
       this.render();
-    } else if (!found.sortList.querySelector('[data-grs-sort]')) {
+      return;
+    }
+
+    if (!found.sortList.querySelector('[data-grs-sort]')) {
       addSortItems(found.sortList, state.settings.view === 'standard' ? null : state.settings.sort);
       this.updateMenu();
-    } else if (state.settings.view !== 'standard') {
-      const checked = found.type.querySelector<HTMLInputElement>('input[name="type"]:checked');
-      if (scopeFromNative(checked?.value ?? '') === null || hasUnsupportedFilters(found)) {
-        this.selectStandard();
-      }
     }
+    if (state.settings.view !== 'standard' && this.hasUnsupportedNativeFilter(found)) {
+      this.selectStandard();
+    }
+  }
+
+  /** After GitHub replaces its form, adopt whatever filters it now shows. */
+  private adoptNativeFilters(native: NativeListRef): void {
+    const state = this.state;
+    if (!state) return;
+    const type = typeFilterFromNative(checkedValue(native.type, 'type'));
+    if (state.settings.view !== 'standard' && type === null) {
+      state.settings = { ...state.settings, view: 'standard' };
+      state.data = null;
+      this.cancelRequest();
+      state.loading = false;
+      return;
+    }
+    if (type !== null) state.settings = { ...state.settings, type };
+  }
+
+  /**
+   * True when GitHub shows a filter the extension cannot reproduce from API
+   * data. The caller must fall back to the standard listing rather than
+   * silently ignoring the user's choice.
+   */
+  private hasUnsupportedNativeFilter(native: NativeListRef): boolean {
+    return typeFilterFromNative(checkedValue(native.type, 'type')) === null;
   }
 
   private bindNative(native: NativeListRef, mount: HTMLElement): void {
     const controller = new AbortController();
     this.listenerAbort = controller;
     const signal = controller.signal;
+
     native.form.addEventListener('click', (event) => {
       const target = event.target instanceof Element ? event.target : null;
       const item = target?.closest<HTMLElement>('[data-grs-sort]');
@@ -192,27 +217,50 @@ export class SorterApp {
       const label = target?.closest('label');
       const input = target instanceof HTMLInputElement ? target : label?.querySelector<HTMLInputElement>('input');
       if (!input || input.type !== 'radio') return;
+
       if (input.name === 'sort') {
         // Restore native content before GitHub handles its own sort selection.
         this.selectStandard();
-      } else if (input.name === 'type' && this.isIntercepting()) {
-        const scope = scopeFromNative(input.value);
-        if (scope === null) {
+        return;
+      }
+      if (!this.isIntercepting()) return;
+
+      if (input.name === 'type') {
+        const type = typeFilterFromNative(input.value);
+        if (type === null) {
           this.selectStandard();
           return;
         }
         event.preventDefault();
         event.stopImmediatePropagation();
-        // Label activation may dispatch a second click directly at the input.
-        // Prevent its default first, then synchronize after activation completes.
-        queueMicrotask(() => { if (this.native === native && this.isIntercepting()) this.updateNativeType(native, scope); });
-        this.setScope(scope);
+        queueMicrotask(() => {
+          if (this.native === native && this.isIntercepting()) this.syncNativeFilterMenus(native);
+        });
+        this.setType(type);
         native.type.open = false;
-      } else if (this.isIntercepting() && (input.name === 'language' || input.name === 'visibility')) {
-        // Unsupported native filters are never silently ignored.
-        this.selectStandard();
+        return;
+      }
+      if (input.name === 'language' && native.language) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        queueMicrotask(() => {
+          if (this.native === native && this.isIntercepting()) this.syncNativeFilterMenus(native);
+        });
+        this.setLanguage(input.value === '' ? 'all' : input.value);
+        native.language.open = false;
+        return;
+      }
+      if (input.name === 'visibility' && native.visibility) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        queueMicrotask(() => {
+          if (this.native === native && this.isIntercepting()) this.syncNativeFilterMenus(native);
+        });
+        this.setVisibility(input.value === '' ? 'all' : (input.value as VisibilityFilter));
+        native.visibility.open = false;
       }
     }, { capture: true, signal });
+
     native.sort.addEventListener('keydown', (event) => {
       const target = event.target instanceof HTMLElement ? event.target : null;
       if (!target?.dataset.grsSort) return;
@@ -222,12 +270,14 @@ export class SorterApp {
         target.click();
       }
     }, { capture: true, signal });
+
     native.search.addEventListener('keydown', (event) => {
       if (this.isIntercepting() && event.key === 'Enter') {
         event.preventDefault();
         event.stopImmediatePropagation();
       }
     }, { capture: true, signal });
+
     native.search.addEventListener('search', (event) => {
       if (!this.isIntercepting()) return;
       event.stopImmediatePropagation();
@@ -238,6 +288,7 @@ export class SorterApp {
       this.state.page = 1;
       this.render();
     }, { capture: true, signal });
+
     native.search.addEventListener('input', (event) => {
       if (!this.isIntercepting()) return;
       event.stopImmediatePropagation();
@@ -250,9 +301,11 @@ export class SorterApp {
         this.render();
       }, SEARCH_DEBOUNCE_MS);
     }, { capture: true, signal });
+
     native.form.addEventListener('submit', (event) => {
       if (this.isIntercepting()) event.preventDefault();
     }, { capture: true, signal });
+
     mount.addEventListener('click', (event) => {
       const target = event.target instanceof Element ? event.target.closest<HTMLElement>('[data-grs-action], [data-grs-page]') : null;
       if (!target) return;
@@ -260,6 +313,7 @@ export class SorterApp {
       if (action === 'refresh' || action === 'retry') void this.fetch({ force: true });
       else if (action === 'public-fallback') void this.fetch({ force: true, authMode: 'public' });
       else if (action === 'open-options') void this.send({ channel: CHANNEL, type: 'open-options' });
+      else if (action === 'standard') this.selectStandard();
       else if (target.dataset.grsPage && this.state) {
         this.state.page = Math.max(1, this.state.page + (target.dataset.grsPage === 'next' ? 1 : -1));
         this.render();
@@ -276,25 +330,33 @@ export class SorterApp {
   }
 
   private readNativeFilters(native: NativeListRef): void {
-    if (!this.state) return;
-    this.state.query = native.search.value;
-    const selected = native.type.querySelector<HTMLInputElement>('input[name="type"]:checked');
-    if (selected && scopeFromNative(selected.value) === null) {
-      this.state.settings = { ...this.state.settings, view: 'standard' };
-    } else if (this.settingsLoaded && this.state.settings.view !== 'standard') {
-      this.updateNativeType(native, this.state.settings.scope);
+    const state = this.state;
+    if (!state) return;
+    state.query = native.search.value;
+    const type = typeFilterFromNative(checkedValue(native.type, 'type'));
+    if (type === null) {
+      state.settings = { ...state.settings, view: 'standard' };
+      return;
     }
-    if (hasUnsupportedFilters(native)) this.state.settings = { ...this.state.settings, view: 'standard' };
+    if (this.settingsLoaded && state.settings.view !== 'standard') this.syncNativeFilterMenus(native);
+  }
+
+  /** Mirrors the extension's filters back into GitHub's own menus. */
+  private syncNativeFilterMenus(native: NativeListRef): void {
+    const settings = this.state?.settings;
+    if (!settings) return;
+    selectValue(native.type, 'type', nativeTypeForFilter(settings.type));
+    if (native.language) selectValue(native.language, 'language', settings.language === 'all' ? '' : settings.language);
+    if (native.visibility) selectValue(native.visibility, 'visibility', settings.visibility === 'all' ? '' : settings.visibility);
   }
 
   private selectSort(sort: SortMode): void {
     const state = this.state;
     const native = this.native;
     if (!state || !native) return;
-    const type = native.type.querySelector<HTMLInputElement>('input[name="type"]:checked');
-    const scope = scopeFromNative(type?.value ?? '');
-    if (scope === null || hasUnsupportedFilters(native)) {
-      state.error = { kind: 'unknown', message: 'このType・Language・Visibilityは独自ソートで使えません。Allに戻してから選択してください。' };
+    const type = typeFilterFromNative(checkedValue(native.type, 'type'));
+    if (type === null) {
+      state.error = { kind: 'unknown', message: 'このTypeは独自ソートで使えません。Allに戻してから選択してください。' };
       state.settings = { ...state.settings, view: 'standard', sort };
       this.cancelRequest();
       state.loading = false;
@@ -302,7 +364,7 @@ export class SorterApp {
       this.render();
       return;
     }
-    state.settings = { ...state.settings, sort, scope, view: 'sorter' };
+    state.settings = { ...state.settings, sort, type, view: 'sorter' };
     this.settingsLoaded = true;
     state.query = native.search.value;
     state.page = 1;
@@ -342,28 +404,27 @@ export class SorterApp {
     this.render();
   }
 
-  private setScope(scope: Scope): void {
+  private setType(type: TypeFilter): void {
+    this.applyFilter({ type });
+  }
+
+  private setLanguage(language: string): void {
+    this.applyFilter({ language });
+  }
+
+  private setVisibility(visibility: VisibilityFilter): void {
+    this.applyFilter({ visibility });
+  }
+
+  private applyFilter(partial: Partial<Pick<SorterSettings, 'type' | 'language' | 'visibility'>>): void {
     const state = this.state;
     const native = this.native;
     if (!state || !native) return;
-    state.settings = { ...state.settings, scope };
+    state.settings = sanitizeSettings({ ...state.settings, ...partial });
     state.page = 1;
-    this.updateNativeType(native, scope);
+    this.syncNativeFilterMenus(native);
     this.persistSettings();
     this.render();
-  }
-
-  private updateNativeType(native: NativeListRef, scope: Scope): void {
-    const value = nativeTypeForScope(scope);
-    for (const input of native.type.querySelectorAll<HTMLInputElement>('input[name="type"]')) {
-      const selected = input.value === value;
-      input.checked = selected;
-      input.closest('[role="menuitemradio"]')?.setAttribute('aria-checked', String(selected));
-    }
-    const selected = [...native.type.querySelectorAll<HTMLInputElement>('input[name="type"]')].find((input) => input.value === value);
-    const label = selected?.closest('label')?.querySelector('[data-menu-button-text]')?.textContent?.trim();
-    const display = native.type.querySelector<HTMLElement>('[data-menu-button]');
-    if (display && label) display.textContent = label;
   }
 
   private async loadSettings(generation: number): Promise<void> {
@@ -378,9 +439,11 @@ export class SorterApp {
     const explicitNativeFilter = ['sort', 'type', 'language', 'visibility'].some((name) => Boolean(url.searchParams.get(name)));
     if (explicitNativeFilter) this.state.settings = { ...this.state.settings, view: 'standard' };
     if (this.native) {
-      const checked = this.native.type.querySelector<HTMLInputElement>('input[name="type"]:checked');
-      if (scopeFromNative(checked?.value ?? '') === null || hasUnsupportedFilters(this.native)) this.state.settings = { ...this.state.settings, view: 'standard' };
-      if (this.state.settings.view !== 'standard') this.updateNativeType(this.native, this.state.settings.scope);
+      if (this.hasUnsupportedNativeFilter(this.native)) {
+        this.state.settings = { ...this.state.settings, view: 'standard' };
+      } else if (this.state.settings.view !== 'standard') {
+        this.syncNativeFilterMenus(this.native);
+      }
       this.state.query = this.native.search.value;
     }
     this.render();
@@ -426,13 +489,12 @@ export class SorterApp {
     if (this.state.error) this.state.data = null;
     if (this.native && !this.state.error) {
       this.state.query = this.native.search.value;
-      const type = this.native.type.querySelector<HTMLInputElement>('input[name="type"]:checked');
-      const scope = scopeFromNative(type?.value ?? '');
-      if (scope === null || hasUnsupportedFilters(this.native)) {
+      const type = typeFilterFromNative(checkedValue(this.native.type, 'type'));
+      if (type === null) {
         this.selectStandard();
         return;
       }
-      this.state.settings = { ...this.state.settings, scope };
+      this.state.settings = { ...this.state.settings, type };
     }
     this.render();
   }
@@ -454,8 +516,36 @@ export class SorterApp {
       const input = item.querySelector<HTMLInputElement>('input[name="sort"]');
       if (input) item.setAttribute('aria-checked', String(!custom && input.checked));
     }
-    // GitHub keeps its own selected value hidden in the button; do not widen it.
     native.sort.dataset.grsCustomActive = String(custom);
+    this.updateSortButton(native, custom);
+  }
+
+  /**
+   * GitHub hides its own selected value in the Sort button. While a custom
+   * order is active, show it compactly there so the control reflects reality;
+   * restore GitHub's own markup when the standard listing returns.
+   */
+  private updateSortButton(native: NativeListRef, custom: boolean): void {
+    const state = this.state;
+    if (!state) return;
+    const summary = native.sort.querySelector<HTMLElement>('summary');
+    if (!summary) return;
+
+    let badge = summary.querySelector<HTMLElement>('[data-grs-sort-label]');
+    if (!custom) {
+      badge?.remove();
+      summary.removeAttribute('data-grs-sort-active');
+      return;
+    }
+    if (!badge) {
+      badge = document.createElement('span');
+      badge.dataset.grsSortLabel = '';
+      badge.className = 'grs-sort-label';
+      summary.append(badge);
+    }
+    const label = sortButtonLabel(state.settings.sort);
+    if (badge.textContent !== label) badge.textContent = label;
+    summary.setAttribute('data-grs-sort-active', 'true');
   }
 
   private render(): void {
@@ -471,8 +561,17 @@ export class SorterApp {
       return;
     }
     const content = renderListContent({
-      sort: state.settings.sort, scope: state.settings.scope, query: state.query, page: state.page,
-      data: state.data, loading: state.loading, progress: state.progress, error: state.error,
+      sort: state.settings.sort,
+      scope: state.settings.scope,
+      query: state.query,
+      page: state.page,
+      data: state.data,
+      loading: state.loading,
+      progress: state.progress,
+      error: state.error,
+      type: state.settings.type,
+      language: state.settings.language,
+      visibility: state.settings.visibility,
     });
     mount.replaceChildren(...(content.body ? [content.status, content.body] : [content.status]));
     setNativeHidden(native.list, content.body !== null);
@@ -484,6 +583,8 @@ export class SorterApp {
     if (this.native) {
       setNativeHidden(this.native.list, false);
       this.native.sort.removeAttribute('data-grs-custom-active');
+      this.native.sort.querySelector('summary')?.removeAttribute('data-grs-sort-active');
+      this.native.sort.querySelector('[data-grs-sort-label]')?.remove();
       for (const label of this.native.sortList.querySelectorAll<HTMLElement>('label[role="menuitemradio"]')) {
         const input = label.querySelector<HTMLInputElement>('input[name="sort"]');
         if (input) label.setAttribute('aria-checked', String(input.checked));

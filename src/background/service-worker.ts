@@ -27,7 +27,7 @@ const handler = createMessageHandler({
   fetchViewer: ({ token }) => fetchViewer({ token }),
   cache,
   settings: createSettingsStore(localArea),
-  tokens: createTokenStore(sessionArea),
+  tokens: createTokenStore(sessionArea, localArea),
   now: Date.now,
   extensionUrlPrefix: chrome.runtime.getURL(''),
   notifyProgress: (progress) => {
@@ -92,16 +92,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 
 // Extension pages need the token; content scripts must never see it.
-type SessionAreaWithAccess = chrome.storage.StorageArea & {
+type StorageAreaWithAccess = chrome.storage.StorageArea & {
   setAccessLevel?: (options: {
     accessLevel: 'TRUSTED_CONTEXTS' | 'TRUSTED_AND_UNTRUSTED_CONTEXTS';
   }) => Promise<void>;
 };
 
-try {
-  const session = chrome.storage.session as SessionAreaWithAccess;
-  void session.setAccessLevel?.({ accessLevel: 'TRUSTED_CONTEXTS' })?.catch(() => undefined);
-} catch {
-  // Older Chrome versions do not expose setAccessLevel; the default is already
-  // TRUSTED_CONTEXTS.
+for (const area of [chrome.storage.session, chrome.storage.local] as StorageAreaWithAccess[]) {
+  try {
+    void area.setAccessLevel?.({ accessLevel: 'TRUSTED_CONTEXTS' })?.catch(() => undefined);
+  } catch {
+    // Older Chrome versions do not expose setAccessLevel; the default is already
+    // TRUSTED_CONTEXTS.
+  }
 }

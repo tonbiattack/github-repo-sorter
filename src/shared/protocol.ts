@@ -19,6 +19,8 @@ export interface FetchData {
 export interface AuthStatusData {
   readonly configured: boolean;
   readonly login: string | null;
+  /** True when the token is mirrored into persistent storage (opt-in). */
+  readonly persistent: boolean;
 }
 
 export interface OperationData {
@@ -70,6 +72,8 @@ export interface AuthSetRequest {
   readonly channel: typeof CHANNEL;
   readonly type: 'auth-set';
   readonly token: string;
+  /** Opt-in: also store the token in `chrome.storage.local` across restarts. */
+  readonly persist?: boolean;
 }
 
 export interface AuthClearRequest {
@@ -246,14 +250,26 @@ export function parseRequest(input: unknown): Request | null {
         channel: CHANNEL,
         type: 'settings-set',
         owner,
-        settings: { sort: input.settings.sort, scope: input.settings.scope, ...(input.settings.view === undefined ? {} : { view: input.settings.view }) },
+        settings: {
+          sort: input.settings.sort,
+          scope: input.settings.scope,
+          ...(input.settings.view === undefined ? {} : { view: input.settings.view }),
+          ...(input.settings.type === undefined ? {} : { type: input.settings.type }),
+          ...(input.settings.language === undefined ? {} : { language: input.settings.language }),
+          ...(input.settings.visibility === undefined ? {} : { visibility: input.settings.visibility }),
+        },
       };
     }
     case 'auth-status':
       return { channel: CHANNEL, type: 'auth-status' };
     case 'auth-set': {
       if (!isValidToken(input.token)) return null;
-      return { channel: CHANNEL, type: 'auth-set', token: input.token };
+      return {
+        channel: CHANNEL,
+        type: 'auth-set',
+        token: input.token,
+        ...(input.persist === true ? { persist: true } : {}),
+      };
     }
     case 'auth-clear':
       return { channel: CHANNEL, type: 'auth-clear' };

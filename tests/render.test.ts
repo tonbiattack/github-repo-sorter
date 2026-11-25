@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it } from 'vitest';
-import { addSortItems, scopeFromNative } from '../src/content/dom';
-import { createRepoRow, renderListContent } from '../src/content/render';
+import { addSortItems, nativeTypeForFilter, scopeFromNative, typeFilterFromNative } from '../src/content/dom';
+import { createRepoRow, languageColor, renderListContent } from '../src/content/render';
 import type { UiState } from '../src/content/render';
 import { NATIVE_HIDDEN_ATTR, locateNativeList, removeStalePanels, setNativeHidden } from '../src/content/native';
 import type { FetchData } from '../src/shared/protocol';
@@ -15,7 +15,12 @@ function makeData(overrides: Partial<FetchData> = {}): FetchData {
   };
 }
 function makeState(overrides: Partial<UiState> = {}): UiState {
-  return { sort: 'activity', scope: 'all', query: '', page: 1, data: makeData(), loading: false, progress: null, error: null, ...overrides };
+  return {
+    sort: 'activity', scope: 'all', query: '', page: 1, data: makeData(),
+    loading: false, progress: null, error: null,
+    type: 'all', language: 'all', visibility: 'all',
+    ...overrides,
+  };
 }
 function nativeMarkup(): string {
   return `<main><form data-autosearch-results-container="user-repositories-list">
@@ -47,6 +52,17 @@ describe('menu integration', () => {
     expect(scopeFromNative('source')).toBe('non-forks');
     expect(scopeFromNative('archived')).toBeNull();
   });
+  it('maps every API-backed Type value and rejects the rest', () => {
+    expect(typeFilterFromNative('')).toBe('all');
+    expect(typeFilterFromNative('fork')).toBe('forks');
+    expect(typeFilterFromNative('source')).toBe('non-forks');
+    expect(typeFilterFromNative('archived')).toBe('archived');
+    expect(typeFilterFromNative('mirror')).toBe('mirror');
+    expect(typeFilterFromNative('template')).toBe('template');
+    expect(typeFilterFromNative('sponsorable')).toBeNull();
+    expect(nativeTypeForFilter('archived')).toBe('archived');
+    expect(nativeTypeForFilter('all')).toBe('');
+  });
 });
 
 describe('repository rows', () => {
@@ -69,6 +85,27 @@ describe('repository rows', () => {
   it('shows missing timestamps explicitly', () => {
     const row = createRepoRow(makeRepo(1, { pushedAt: null }), 'pushed');
     expect(row.textContent).toContain('Push: 日時なし');
+  });
+
+  it('colours known languages and falls back for unknown ones', () => {
+    expect(languageColor('TypeScript')).toBe('#3178c6');
+    expect(languageColor('python')).toBe('#3572A5');
+    expect(languageColor('Brainfuck')).toBeNull();
+
+    const known = createRepoRow(makeRepo(1, { language: 'TypeScript' }), 'activity');
+    const dot = known.querySelector<HTMLElement>('.grs-language-dot');
+    expect(dot?.style.backgroundColor).toBe('rgb(49, 120, 198)');
+    expect(dot?.classList.contains('grs-language-dot--unknown')).toBe(false);
+
+    const unknown = createRepoRow(makeRepo(2, { language: 'Brainfuck' }), 'activity');
+    expect(unknown.querySelector('.grs-language-dot')?.classList.contains('grs-language-dot--unknown')).toBe(true);
+  });
+
+  it('labels archived, template and mirror repositories', () => {
+    const row = createRepoRow(makeRepo(1, { archived: true, template: true, mirror: true }), 'activity');
+    expect(row.textContent).toContain('Archived');
+    expect(row.textContent).toContain('Template');
+    expect(row.textContent).toContain('Mirror');
   });
 });
 
@@ -97,6 +134,15 @@ describe('list rendering', () => {
     const content = renderListContent(makeState({ data: makeData({ repos }), page: 2 }));
     expect(content.body?.querySelectorAll('.grs-repo')).toHaveLength(30);
     expect(content.body?.querySelector('.grs-pager__status')?.textContent).toContain('31–60 / 61件');
+  });
+
+  it('points at the standard listing instead of faking GitHub-only actions', () => {
+    const content = renderListContent(makeState());
+    const hint = content.body?.querySelector('.grs-hint');
+    expect(hint?.textContent).toContain('Star ボタン');
+    expect(hint?.querySelector('[data-grs-action="standard"]')).not.toBeNull();
+    // No fake Star button or fork-parent link is rendered.
+    expect(content.body?.querySelector('[data-grs-action="star"], .grs-repo__fork-parent')).toBeNull();
   });
 });
 

@@ -1,8 +1,14 @@
-import type { Repo, Scope } from './types';
+import type { Repo, Scope, TypeFilter, VisibilityFilter } from './types';
 
 export interface FilterOptions {
   readonly scope: Scope;
   readonly query: string;
+  /** GitHub's Type menu. `all` means "no extra constraint". */
+  readonly type?: TypeFilter;
+  /** GitHub's Language menu value (lower-case slug), or `all`. */
+  readonly language?: string;
+  /** GitHub's Visibility menu. */
+  readonly visibility?: VisibilityFilter;
 }
 
 export interface Page<T> {
@@ -44,9 +50,70 @@ export function matchesScope(repo: Repo, scope: Scope): boolean {
   }
 }
 
-/** Applies scope and query filters. Filtering happens before pagination. */
+/**
+ * GitHub's Type menu. `archived`/`mirror`/`template` are exclusive on GitHub,
+ * so they replace the fork constraint rather than stacking with it.
+ */
+export function matchesType(repo: Repo, type: TypeFilter): boolean {
+  switch (type) {
+    case 'all':
+      return true;
+    case 'forks':
+      return repo.fork;
+    case 'non-forks':
+      return !repo.fork;
+    case 'archived':
+      return repo.archived;
+    case 'mirror':
+      return repo.mirror;
+    case 'template':
+      return repo.template;
+    default:
+      return true;
+  }
+}
+
+/**
+ * GitHub's Language menu uses lower-case slugs (e.g. `c++` -> `c++`,
+ * `jupyter notebook` -> `jupyter-notebook`). Compare on a normalised form so
+ * the API's display name matches the menu value.
+ */
+export function languageSlug(language: string): string {
+  return language.trim().toLowerCase().replace(/\s+/g, '-');
+}
+
+export function matchesLanguage(repo: Repo, language: string): boolean {
+  if (language === '' || language === 'all') return true;
+  if (repo.language === null) return false;
+  return languageSlug(repo.language) === language.toLowerCase();
+}
+
+export function matchesVisibility(repo: Repo, visibility: VisibilityFilter): boolean {
+  switch (visibility) {
+    case 'all':
+      return true;
+    case 'public':
+      return repo.visibility === 'public';
+    case 'private':
+      return repo.visibility === 'private';
+    default:
+      return true;
+  }
+}
+
+/** Applies every filter. Filtering happens before sorting and pagination. */
 export function filterRepos(repos: readonly Repo[], options: FilterOptions): Repo[] {
-  return repos.filter((repo) => matchesScope(repo, options.scope) && matchesQuery(repo, options.query));
+  const type = options.type ?? 'all';
+  const language = options.language ?? 'all';
+  const visibility = options.visibility ?? 'all';
+  return repos.filter(
+    (repo) =>
+      matchesScope(repo, options.scope) &&
+      matchesType(repo, type) &&
+      matchesLanguage(repo, language) &&
+      matchesVisibility(repo, visibility) &&
+      matchesQuery(repo, options.query),
+  );
 }
 
 /** Clamps `page` into range and slices the visible page. */

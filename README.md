@@ -1,142 +1,262 @@
 # GitHub Repo Sorter
 
-GitHub のリポジトリ一覧で「新規作成」「Fork」「Push」を同じ活動として扱い、
-最近触ったリポジトリを素早く見つけられるようにする Chrome 拡張（Manifest V3）です。
-ローカルサーバー不要、外部サーバーへの送信なしで動作します。
+An unofficial Chrome extension (Manifest V3) that sorts the repository list on a
+GitHub profile page by recent activity, treating **creation, forks, and pushes**
+as the same kind of activity.
 
-- 仕様書: [docs/SPEC.md](docs/SPEC.md)
-- 実装メモ（仕様との差異・判断・検証結果）: [docs/IMPLEMENTATION-NOTES.md](docs/IMPLEMENTATION-NOTES.md)
+It adds its options to GitHub's own **Sort** menu and reuses GitHub's search box
+and Type / Language / Visibility filters, so there is no separate panel to learn.
+No local server, no analytics, no third-party servers.
 
-## 主な機能
+- Specification: [docs/SPEC.md](docs/SPEC.md)
+- Implementation notes (decisions, deviations, verification): [docs/IMPLEMENTATION-NOTES.md](docs/IMPLEMENTATION-NOTES.md)
+- Privacy policy: [docs/PRIVACY.md](docs/PRIVACY.md)
+- Store listing copy: [docs/STORE-LISTING.md](docs/STORE-LISTING.md)
 
-- GitHub 標準の「Sort」メニューに並び替え項目を追加。検索欄・Type メニューをそのまま使えます
-- 並び替え: 作成・Fork・Push 統合順（初期値）、作成順、Fork順、Push順、情報更新順
-- 絞り込み: 全件 / Forkのみ / 非Forkのみ、名前・説明の部分一致検索（空白区切りは AND）
-- 検索・絞り込みは **全取得済みデータに適用してから** 30件ずつページ分割
-- 各行に名前・リンク・説明・公開範囲（Public/Private）・Fork 表示・最新活動日時と種別を表示
-- ライト / ダークモードは GitHub の CSS 変数に追従
-- owner ごとに並び順・絞り込みを `chrome.storage.local` へ保存して復元
-- 取得中・空・エラー・部分取得を明示。失敗時は GitHub 標準一覧に戻せる
-- 任意で読み取り専用トークンを設定すると、自分の非公開リポジトリも一覧に含める
+> This project is not affiliated with GitHub, Inc.
 
-## 動作要件
+## Features
 
-- Chrome / Edge（Chromium 116 以上）。開発・検証は Chromium 159 で実施
-- 権限: `storage` と `https://api.github.com/*` のみ
+- **Sort options in GitHub's own Sort menu**: integrated activity (default),
+  creation, fork date, push date, and metadata update.
+- **Uses GitHub's existing controls**: the search box, Type, Language, and
+  Visibility menus all keep working; only the list itself is replaced.
+- **Whole-list sorting**: every page is fetched from the API, then filtered,
+  sorted, and paginated 30 rows at a time — not just the 30 rows on screen.
+- **Rows show** name, link, description, visibility, fork/archived/template/
+  mirror labels, language with GitHub's colour, star and fork counts, and the
+  timestamp that produced the current order.
+- **Light and dark themes** follow GitHub's own colour tokens.
+- **Per-owner settings** are restored on your next visit.
+- **Explicit states** for loading, empty, error, and partial results. If
+  anything fails, GitHub's own list stays usable.
+- **Optional read-only token** to include your private repositories.
 
-## セットアップ
+## Requirements
+
+- Chrome or Edge (Chromium 116+). Development and verification used Chromium 159.
+- Permissions: `storage` and `https://api.github.com/*` only.
+
+## Install
 
 ```powershell
 npm ci
 npm run build
 ```
 
-1. Chrome で `chrome://extensions` を開き「デベロッパーモード」を有効にする
-2. 「パッケージ化されていない拡張機能を読み込む」で、このリポジトリの `dist/` を選択する
-3. `https://github.com/<owner>?tab=repositories` を開く（例: `https://github.com/tonbiattack?tab=repositories`）
+1. Open `chrome://extensions` and enable **Developer mode**.
+2. Choose **Load unpacked** and select this repository's `dist/` directory.
+3. Open `https://github.com/<owner>?tab=repositories`.
 
-> `dist/` はビルド成果物です。ソースを変更したら `npm run build`（または `npm run watch`）で再生成し、
-> `chrome://extensions` の再読み込みボタンを押してください。
+`dist/` is a build artifact. After changing source, run `npm run build` (or
+`npm run watch`) and press the reload button on `chrome://extensions`.
 
-## 使い方
+## Usage
 
-- **並び替え**: GitHub の「Sort」メニューの Repo Sorter 項目を選びます。初期値は「作成・Fork・Push順」です。
-- **対象**: GitHub の「Type」から All / Forks / Sources（非Fork）を選びます。
-- **検索**: 既存の検索欄で名前と説明の部分一致。複数語はすべて含むものに絞り込みます。
-- **再取得**: 一覧上部の「再取得」で5分のメモリキャッシュを無視して取得し直します。
-- **標準表示**: Sort の GitHub 標準項目を選ぶと、GitHub の一覧・検索・ページ送りに戻ります。
-- **取得時刻と範囲**: 拡張一覧の上部に公開のみ/認証済み、件数、取得時刻を表示します。
+- **Sort**: open GitHub's **Sort** menu and pick an entry under "Repo Sorter".
+  The active order is shown on the Sort button and in the status line above the
+  list.
+- **Type / Language / Visibility**: use GitHub's own menus. They filter the whole
+  fetched set before pagination.
+- **Search**: GitHub's search box filters by name and description; multiple
+  words must all match.
+- **Refresh**: "再取得" bypasses the 5-minute memory cache.
+- **Back to GitHub's list**: pick any standard entry in the Sort menu. The
+  extension restores GitHub's list, search, and paging immediately.
 
-### 並び順の定義
+### How the order is defined
 
-- 統合活動日時 = `max(created_at, pushed_at)`
-- Fork日時 = Fork 先リポジトリの `created_at`（GitHub API の実データで確認済み）
-- `updated_at` は説明変更などを含むため統合順では使いません（「情報更新順」を選んだときだけ使用）
-- 無効・欠損の日時は比較から除外し、全欠損は末尾
-- 同値は `full_name` 昇順、最後に `id`
-- 日時は UTC で比較し、表示はローカル時刻
+- Integrated activity = `max(created_at, pushed_at)`
+- Fork date = the fork's own `created_at` (verified against live API data)
+- `updated_at` is excluded from the integrated order because it also changes on
+  description edits; it is used only by the "metadata update" order
+- Invalid or missing timestamps are excluded from comparison and sort last
+- Ties break on `full_name` ascending, then `id`
+- Timestamps are compared in UTC and displayed in local time
 
-## 非公開リポジトリ（任意）
+## Private repositories (optional)
 
-1. GitHub の Settings → Developer settings で読み取り専用トークンを作成
-   - クラシックトークン: `repo` スコープ
-   - fine-grained トークン: 対象リポジトリの `Metadata: Read`
-2. ツールバーの拡張アイコン、または `chrome://extensions` → 詳細 → 拡張機能のオプションを開く
-3. トークンを入力して「保存して検証」を押す
+1. Create a read-only token in GitHub → Settings → Developer settings.
+   - **Recommended**: a fine-grained token with **Metadata: Read** on the
+     repositories you want to include.
+   - A classic token needs the `repo` scope. Note that `repo` is **not**
+     read-only — it also grants write access.
+2. Open the extension's options page (toolbar icon, or `chrome://extensions` →
+   Details → Extension options).
+3. Paste the token and press "保存して検証".
 
-トークンは `chrome.storage.session` にだけ保存し、content script には渡しません。
-ブラウザを終了すると消えます。認証済みの一覧と公開一覧はキャッシュも分離しています。
-認証に失敗しても勝手に公開一覧へ切り替えず、エラーと「公開一覧として取得」ボタンを表示します。
+By default the token is stored only in `chrome.storage.session`: it survives
+service-worker restarts but not a browser restart, and it is never handed to a
+content script. Ticking "ブラウザを再起動しても保持する" additionally stores it in
+`chrome.storage.local`, which is plain text on disk — see
+[docs/PRIVACY.md](docs/PRIVACY.md) before enabling it.
 
-## 権限とプライバシー
+Authenticated and public listings use separate caches. If authentication fails
+or the token belongs to another account, the extension shows an error and an
+explicit "公開一覧として取得" action instead of silently falling back.
 
-- `permissions`: `storage` のみ
-- `host_permissions`: `https://api.github.com/*` のみ
-- content script: `https://github.com/*` に登録し、`/{owner}?tab=repositories` でのみ動作
-- 通信先は `api.github.com` のみ。分析・外部サーバー送信・Cookie 流用は行いません
-- リポジトリ一覧は service worker のメモリに5分間キャッシュするだけで、永続化しません
-- HTML は `textContent` で描画し、API 由来の文字列を HTML として解釈しません
+## Permissions and privacy
 
-## 開発
+- `permissions`: `storage` only
+- `host_permissions`: `https://api.github.com/*` only
+- Content script: `https://github.com/*`, active only on `/{owner}?tab=repositories`
+- Network destination: `api.github.com` only. No analytics, no external servers,
+  no GitHub cookie reuse.
+- Repository data is cached in service-worker memory for 5 minutes and never
+  persisted.
+- HTML is rendered with `textContent`; API strings are never interpreted as markup.
 
-| コマンド | 内容 |
+## Development
+
+| Command | Purpose |
 | --- | --- |
-| `npm run typecheck` | TypeScript の型検査 |
-| `npm test` | Vitest による単体・DOM 統合テスト |
-| `npm run build` | `dist/` に拡張をビルド |
-| `npm run watch` | 変更を監視して再ビルド |
-| `npm run verify` | 型検査 → テスト → ビルド |
-| `npm run check:browser` | 実ブラウザで拡張を読み込み、DOM・ソート・ページ送り・検索・標準復帰・設定復元・ライト/ダークを検証 |
+| `npm run typecheck` | TypeScript type check |
+| `npm test` | Unit and DOM integration tests (Vitest) |
+| `npm run build` | Build the extension into `dist/` |
+| `npm run watch` | Rebuild on change |
+| `npm run icons` | Regenerate `icons/*.png` from source |
+| `npm run package` | Build the store ZIP into `release/` |
+| `npm run release` | `verify` then `package` |
+| `npm run verify` | Type check → tests → build |
+| `npm run check:browser` | Load the extension in a real Chromium and verify behaviour |
 
-### 実ブラウザ検証について
+### Real-browser check
 
-`npm run check:browser` は Chrome DevTools Protocol で Chromium を操作します。
-Chrome 137 以降のブランド版は `--load-extension` を無視するため、Playwright の Chromium か
-Chrome for Testing が必要です。`CHROME_PATH` で実行ファイルを指定できます。
+`npm run check:browser` drives Chromium over the Chrome DevTools Protocol.
+Branded Chrome 137+ ignores `--load-extension`, so use Playwright's Chromium or
+Chrome for Testing; set `CHROME_PATH` to point at it.
 
 ```powershell
-# 例: Playwright の Chromium を使う
 $env:CHROME_PATH = "$env:LOCALAPPDATA\ms-playwright\chromium-1255\chrome-win64\chrome.exe"
 npm run check:browser -- --owner tonbiattack
 ```
 
-検証結果（2026-11-25、Chromium 159 / headless）:
+Verified on 2026-11-25 with Chromium 159 (headless):
 
-- 旧 UI は公開 316 件を取得、新 UI は認証済み 699 件について、独立実装した期待順と画面の並びが一致
-- Sort・Type の実クリック、ページ送り、検索、標準復帰、設定復元、Turbo の一覧差し替えを確認
-- アカウント不一致では標準一覧を表示したままエラーと明示的な公開取得を提示。解除後に旧非公開一覧が残らないことを確認
-- ライト / ダークで GitHub の背景に追従することを確認
+- 316 public repositories across 4 pages: the rendered order matched an
+  independent implementation of the sort
+- Paging (page 2 = rows 31–60), search, Type/Language/Visibility, standard-sort
+  restoration, reload, and a simulated Turbo DOM replacement
+- Light `rgb(255,255,255)` / dark `rgb(13,17,23)` backgrounds
+- With a token: 699 repositories (383 private), owner-mismatch error, and token
+  removal
 
-変更前後のスクリーンショットは [docs/screenshots](docs/screenshots) にあります（変更前: `issue-10-before-*`、変更後: `issue-10-after-*`）。
+The check depends on the unauthenticated GitHub API rate limit (60 requests per
+hour). `GRS_VERIFY_TOKEN` can supply a token for the independent expectation
+fetch; `GRS_TEST_AUTH=1` also exercises the authenticated path in a throwaway
+browser profile and clears it through the options page. Tokens are never printed
+or written to the repository. Screenshots are written to
+`dist/browser-check-{light,dark}.png` for public runs only.
 
-`npm run check:browser` は公開APIのレート制限に依存します。必要に応じて `GRS_VERIFY_TOKEN` を検証用プロセスに指定すると、期待値取得だけに利用できます。`GRS_TEST_AUTH=1` を同時に指定した場合は一時ブラウザの拡張セッションにも設定して認証を検証し、設定画面から解除します。トークンは画面やログに出力しません。公開一覧の検証時はスクリーンショットを `dist/browser-check-light.png` / `dist/browser-check-dark.png` に出力します。認証付きで実行した場合は非公開情報が画像に残らないよう、スクリーンショットを保存しません。
-
-### 構成
+### Layout
 
 ```
 src/
-  background/   service worker・メッセージ処理・保存領域
-  content/      GitHub 標準 UI への挿入・描画・Turbo 遷移対応
-  options/      トークン設定ページ
-  shared/       API 取得・ソート・フィルタ・プロトコル・キャッシュ（DOM/Chrome 非依存）
-tests/          ユニットテスト（jsdom による描画テストを含む）
-docs/           仕様書・実装メモ
+  background/   service worker, message handling, storage
+  content/      GitHub UI integration, rendering, Turbo handling
+  options/      token and settings page
+  shared/       API, sorting, filtering, protocol, cache (no DOM or chrome.*)
+tests/          unit and jsdom integration tests
+docs/           specification, implementation notes, privacy, store listing
+scripts/        build, icons, packaging, browser check
 ```
 
-## 制約・既知の限界
+## Known limitations
 
-- 対象は `github.com/{owner}?tab=repositories` のみ（ダッシュボードや検索結果は対象外）
-- 組織プロフィールや GitHub の DOM が対応形式と異なる場合は拡張を挿入せず、GitHub 標準のままにします
-- 独自ソート中に対応する Type は All / Forks / Sources です。Archived 等の Type、Language、Visibility は選択すると GitHub 標準表示へ戻ります
-- 独自一覧の行は API 情報から描画するため、Star ボタン・Fork 元リンク・グラフ等は表示しません。GitHub 標準の操作が必要な場合は標準 Sort を選んでください
-- Sort/Type ボタンは GitHub 標準の見た目のまま（選択値はボタンに表示されません）。現在の並び順は一覧上部のステータス行に表示します
-- 最大 100 ページ（1万件）で打ち切り、部分取得として表示
-- 5分のメモリキャッシュは service worker の停止で失われることがある（仕様どおり）
-- 非公開リポジトリの取得はトークン設定時のみ。細かい権限要件は GitHub 側の仕様変更に依存
-- アイコンは未設定。Chrome Web Store 公開準備（Issue #7）は対象外
+- Only `github.com/{owner}?tab=repositories` is supported (not the dashboard or
+  search results).
+- If GitHub's markup differs from the expected structure, the extension does not
+  insert itself and leaves the standard listing untouched.
+- Type values the API cannot reproduce (for example "Can be sponsored") fall back
+  to the standard listing rather than being silently ignored.
+- Rows are rendered from API data, so Star buttons, fork-parent links, and
+  contribution graphs are not reproduced. The list links to the standard view
+  for those actions.
+- At most 100 pages (10,000 repositories) are fetched; beyond that the result is
+  marked as partial.
+- The 5-minute cache lives in service-worker memory and can be lost when the
+  worker stops.
+- Private repositories require a token; exact scopes depend on GitHub's policy.
+- No license has been chosen yet.
+
+## Uninstall
+
+Remove the extension from `chrome://extensions`. Chrome deletes its stored data
+with it. You can then delete `dist/`, `release/`, and `node_modules/`.
+
+---
+
+## 日本語
+
+GitHub のプロフィールのリポジトリ一覧を、**作成・Fork・Push を同じ活動として**
+扱い、最近触った順に並べ替える非公式の Chrome 拡張（Manifest V3）です。
+GitHub 標準の **Sort** メニューに項目を追加し、検索欄と Type / Language /
+Visibility は GitHub のものをそのまま使います。ローカルサーバー不要、外部送信なし。
+
+> 本拡張は GitHub, Inc. とは関係ありません。
+
+### 主な機能
+
+- GitHub 標準の Sort メニューに「作成・Fork・Push順」（初期値）、作成順、
+  Fork順、Push順、情報更新順を追加
+- 検索欄・Type・Language・Visibility は GitHub 標準の操作をそのまま利用
+- 全ページを取得してから絞り込み・並び替え・30 件ずつのページ分割
+- 各行に名前・リンク・説明・公開範囲・Fork/Archived/Template/Mirror・
+  言語（GitHub の色）・Star 数・Fork 数・並び順の基準日時を表示
+- ライト / ダークは GitHub の配色に追従
+- owner ごとに並び順・絞り込みを保存して復元
+- 取得中・空・エラー・部分取得を明示。失敗時は GitHub 標準一覧をそのまま利用可能
+- 任意の読み取り専用トークンで非公開リポジトリも対象
+
+### 導入
+
+```powershell
+npm ci
+npm run build
+```
+
+`chrome://extensions` でデベロッパーモードを有効にし、「パッケージ化されていない
+拡張機能を読み込む」で `dist/` を選択します。その後
+`https://github.com/<owner>?tab=repositories` を開きます。
+
+### 使い方
+
+- **並び替え**: GitHub の「Sort」メニューの Repo Sorter 項目を選びます。
+  選択中の並び順は Sort ボタンと一覧上部のステータス行に表示されます。
+- **対象・言語・公開範囲**: GitHub の Type / Language / Visibility を使用。
+  全取得データに適用してからページ分割します。
+- **検索**: GitHub の検索欄で名前・説明の部分一致。複数語は AND。
+- **再取得**: 「再取得」で 5 分のメモリキャッシュを無視します。
+- **標準表示**: Sort の GitHub 標準項目を選ぶと、元の一覧にすぐ戻ります。
+
+### 並び順の定義
+
+- 統合活動日時 = `max(created_at, pushed_at)`
+- Fork日時 = Fork 先の `created_at`（実データで確認済み）
+- `updated_at` は説明変更でも変わるため統合順では使わない（情報更新順のみ）
+- 無効・欠損の日時は比較から除外し、全欠損は末尾
+- 同値は `full_name` 昇順、最後に `id`
+- 日時は UTC で比較し、表示はローカル時刻
+
+### 非公開リポジトリ（任意）
+
+fine-grained トークンで対象リポジトリの **Metadata: Read** のみを付与するのが
+推奨です。クラシックトークンの `repo` スコープは**読み取り専用ではありません**。
+
+既定では `chrome.storage.session` にのみ保存し、ブラウザ終了で消えます。
+「ブラウザを再起動しても保持する」を有効にすると `chrome.storage.local` にも
+保存されますが、これはディスク上に平文で残ります。共用 PC では有効にしないで
+ください。詳細は [docs/PRIVACY.md](docs/PRIVACY.md) を参照してください。
+
+### 制約
+
+- 対象は `github.com/{owner}?tab=repositories` のみ
+- GitHub の DOM が想定と異なる場合は挿入せず、標準表示のままにします
+- API で再現できない Type（例: Can be sponsored）は標準表示へ戻します
+- Star ボタン・Fork 元リンク・グラフは再現しません（標準表示への案内を表示）
+- 最大 100 ページ（1 万件）で打ち切り、部分取得として表示
 - ライセンスは未定
 
-## アンインストール
+### アンインストール
 
-`chrome://extensions` でこの拡張を削除し、必要なら本リポジトリの `dist/` と `node_modules/` を削除します。
-`chrome.storage` のデータは拡張の削除に伴って消えます。
+`chrome://extensions` で削除します。`chrome.storage` のデータも一緒に消えます。

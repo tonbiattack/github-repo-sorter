@@ -1,12 +1,15 @@
 {
   "name": "github-repo-sorter",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
-  "description": "GitHub のリポジトリ一覧を、作成・Fork・Push を統合した最近の活動順に並べ替える Chrome 拡張",
+  "description": "Sort GitHub repositories by recent activity, including creation, forks, and pushes, directly in GitHub.",
   "type": "module",
   "scripts": {
     "build": "node scripts/build.mjs",
     "watch": "node scripts/build.mjs --watch",
+    "icons": "node scripts/make-icons.mjs",
+    "package": "node scripts/package.mjs",
+    "release": "npm run verify && npm run package",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "check:browser": "node scripts/browser-check.mjs",
