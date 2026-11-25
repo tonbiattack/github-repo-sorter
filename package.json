@@ -2,6 +2,7 @@
   "name": "github-repo-sorter",
   "version": "0.3.0",
   "private": true,
+  "license": "MIT",
   "description": "Sort GitHub repositories by recent activity, including creation, forks, and pushes, directly in GitHub.",
   "type": "module",
   "scripts": {

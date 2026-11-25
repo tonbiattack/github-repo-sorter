@@ -8,7 +8,7 @@ It adds its options to GitHub's own **Sort** menu and reuses GitHub's search box
 and Type / Language / Visibility filters, so there is no separate panel to learn.
 No local server, no analytics, no third-party servers.
 
-[日本語の説明](#日本語) · [Specification](docs/SPEC.md) · [Privacy](docs/PRIVACY.md) · [Implementation notes](docs/IMPLEMENTATION-NOTES.md)
+[日本語の説明](#日本語) · [Specification](docs/SPEC.md) · [Privacy](docs/PRIVACY.md) · [Implementation notes](docs/IMPLEMENTATION-NOTES.md) · [License](LICENSE)
 
 > This project is not affiliated with GitHub, Inc.
 
@@ -197,12 +197,21 @@ scripts/        build, icons, packaging, browser check
 - The 5-minute cache lives in service-worker memory and can be lost when the
   worker stops.
 - Private repositories require a token; exact scopes depend on GitHub's policy.
-- No license has been chosen yet.
+- Released under the MIT License — see [LICENSE](LICENSE).
 
 ## Uninstall
 
 Remove the extension from `chrome://extensions`. Chrome deletes its stored data
 with it. You can then delete `dist/`, `release/`, and `node_modules/`.
+
+## License
+
+[MIT](LICENSE) © 2026 tonbiattack.
+
+The MIT license covers the source in this repository and the files in the
+release ZIP. Runtime dependencies are not bundled; development dependencies
+(`esbuild`, `typescript`, `vitest`, `jsdom`, `@types/*`) are used only for
+building and testing.
 
 ---
 
@@ -279,8 +288,12 @@ fine-grained トークンで対象リポジトリの **Metadata: Read** のみ�
 - API で再現できない Type（例: Can be sponsored）は標準表示へ戻します
 - Star ボタン・Fork 元リンク・グラフは再現しません（標準表示への案内を表示）
 - 最大 100 ページ（1 万件）で打ち切り、部分取得として表示
-- ライセンスは未定
+- MIT ライセンス（[LICENSE](LICENSE)）
 
 ### アンインストール
 
 `chrome://extensions` で削除します。`chrome.storage` のデータも一緒に消えます。
+
+### ライセンス
+
+[MIT](LICENSE) © 2026 tonbiattack。
