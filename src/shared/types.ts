@@ -12,8 +12,13 @@ export interface Repo {
   readonly fullName: string;
   readonly htmlUrl: string;
   readonly description: string | null;
+  readonly language: string | null;
   readonly visibility: 'public' | 'private';
   readonly fork: boolean;
+  /** Stargazer count; null when the API omitted or reported an invalid value. */
+  readonly stars: number | null;
+  /** Fork count; null when the API omitted or reported an invalid value. */
+  readonly forks: number | null;
   readonly createdAt: string | null;
   readonly pushedAt: string | null;
   readonly updatedAt: string | null;

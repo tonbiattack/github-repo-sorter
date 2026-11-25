@@ -256,9 +256,9 @@ describe('settings', () => {
     expect(set).toEqual({
       ok: true,
       kind: 'settings',
-      data: { sort: 'created', scope: 'forks' },
+      data: { sort: 'created', scope: 'forks', view: 'sorter' },
     });
-    expect(local.data['grs:settings:owner']).toEqual({ sort: 'created', scope: 'forks' });
+    expect(local.data['grs:settings:owner']).toEqual({ sort: 'created', scope: 'forks', view: 'sorter' });
 
     const get = expectResponse(
       await handler.handle(
@@ -266,7 +266,7 @@ describe('settings', () => {
         OWNER_PAGE,
       ),
     );
-    expect(get).toEqual({ ok: true, kind: 'settings', data: { sort: 'created', scope: 'forks' } });
+    expect(get).toEqual({ ok: true, kind: 'settings', data: { sort: 'created', scope: 'forks', view: 'sorter' } });
   });
 
   it('rejects settings access from a different owner page', async () => {
@@ -347,6 +347,39 @@ describe('authentication management', () => {
       kind: 'auth-status',
       data: { configured: false, login: null },
     });
+  });
+
+  it('notifies content tabs when authentication changes', async () => {
+    const notify = vi.fn();
+    const base = setup();
+    const handler = createMessageHandler({
+      fetchAll: base.fetchAll,
+      fetchViewer: base.fetchViewer,
+      cache: base.cache,
+      settings: createSettingsStore(base.local),
+      tokens: createTokenStore(base.session),
+      now: () => base.clock.now,
+      extensionUrlPrefix: 'chrome-extension://ext/',
+      notifyAuthChanged: notify,
+    });
+    await handler.handle({ channel: CHANNEL, type: 'auth-set', token: TOKEN }, EXTENSION_PAGE);
+    await handler.handle({ channel: CHANNEL, type: 'auth-clear' }, EXTENSION_PAGE);
+    expect(notify).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not return or cache an in-flight private listing after token removal', async () => {
+    let resolveFetch: ((value: FetchAllResult) => void) | undefined;
+    let started: (() => void) | undefined;
+    const ready = new Promise<void>((resolve) => { started = resolve; });
+    const fetchAll = vi.fn(() => new Promise<FetchAllResult>((resolve) => { resolveFetch = resolve; started?.(); }));
+    const { handler, cache } = setup({ token: TOKEN, fetchAll });
+    const pending = handler.handle(fetchRequest(), OWNER_PAGE);
+    await ready;
+    await handler.handle({ channel: CHANNEL, type: 'auth-clear' }, EXTENSION_PAGE);
+    resolveFetch?.({ repos: [makeRepo(1, { visibility: 'private' })], pagesFetched: 1, partial: false, error: null });
+    const result = expectResponse(await pending);
+    expect(result).toMatchObject({ ok: false, error: { kind: 'aborted' } });
+    expect(cache.size).toBe(0);
   });
 
   it('clears the cache without touching the token', async () => {

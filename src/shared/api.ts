@@ -163,6 +163,13 @@ function asTimestamp(value: unknown): string | null {
   return parseTimestamp(text) === null ? null : text;
 }
 
+/** Keeps only non-negative integers, so a malformed count cannot reach the UI. */
+function asCount(value: unknown): number | null {
+  if (typeof value !== 'number') return null;
+  if (!Number.isInteger(value) || value < 0) return null;
+  return value;
+}
+
 /**
  * Normalises one API repository object.
  *
@@ -195,8 +202,11 @@ export function normalizeRepo(raw: unknown): Repo | null {
     fullName,
     htmlUrl,
     description: asString(record.description),
+    language: asString(record.language),
     visibility: record.private === true ? 'private' : 'public',
     fork: record.fork === true,
+    stars: asCount(record.stargazers_count),
+    forks: asCount(record.forks_count),
     createdAt: asTimestamp(record.created_at),
     pushedAt: asTimestamp(record.pushed_at),
     updatedAt: asTimestamp(record.updated_at),

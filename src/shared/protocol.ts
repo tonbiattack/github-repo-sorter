@@ -246,7 +246,7 @@ export function parseRequest(input: unknown): Request | null {
         channel: CHANNEL,
         type: 'settings-set',
         owner,
-        settings: { sort: input.settings.sort, scope: input.settings.scope },
+        settings: { sort: input.settings.sort, scope: input.settings.scope, ...(input.settings.view === undefined ? {} : { view: input.settings.view }) },
       };
     }
     case 'auth-status':

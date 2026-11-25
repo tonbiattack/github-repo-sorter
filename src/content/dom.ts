@@ -1,5 +1,6 @@
-import { SCOPE_LABELS, SORT_HINTS, SORT_LABELS } from '../shared/labels';
-import { SCOPES, SORT_MODES } from '../shared/types';
+import { SORT_LABELS } from '../shared/labels';
+import { SORT_MODES } from '../shared/types';
+import type { Scope, SortMode } from '../shared/types';
 
 export type Child = Node | string | null | undefined | false;
 
@@ -9,7 +10,7 @@ export interface ElementProps {
   readonly attrs?: Readonly<Record<string, string>>;
 }
 
-/** Small `document.createElement` wrapper; the only place elements are created. */
+/** Create DOM using textContent; API values must never be interpreted as markup. */
 export function h<K extends keyof HTMLElementTagNameMap>(
   tag: K,
   props: ElementProps = {},
@@ -21,162 +22,64 @@ export function h<K extends keyof HTMLElementTagNameMap>(
   if (props.attrs) {
     for (const [name, value] of Object.entries(props.attrs)) element.setAttribute(name, value);
   }
-  appendChildren(element, children);
+  for (const child of children) {
+    if (child !== null && child !== undefined && child !== false) element.append(child);
+  }
   return element;
 }
 
-export function appendChildren(parent: Element, children: readonly Child[]): void {
-  for (const child of children) {
-    if (child === null || child === undefined || child === false) continue;
-    parent.append(child);
-  }
-}
-
-export interface ButtonOptions {
-  readonly variant?: 'primary' | 'subtle';
-  readonly disabled?: boolean;
-}
-
-/** Action button recognised by the panel's delegated click handler. */
-export function actionButton(
-  label: string,
-  action: string,
-  options: ButtonOptions = {},
-): HTMLButtonElement {
-  const className =
-    options.variant === 'primary'
-      ? 'grs-button grs-button--primary'
-      : options.variant === 'subtle'
-        ? 'grs-button grs-button--subtle'
-        : 'grs-button';
-  const element = h('button', {
-    className,
+export function actionButton(label: string, action: string): HTMLButtonElement {
+  return h('button', {
+    className: 'btn-link grs-action',
     text: label,
     attrs: { type: 'button', 'data-grs-action': action },
   });
-  element.disabled = options.disabled === true;
-  return element;
 }
 
 export function pageButton(label: string, page: 'prev' | 'next', disabled: boolean): HTMLButtonElement {
-  const element = h('button', {
-    className: 'grs-button',
+  const button = h('button', {
+    className: 'btn btn-sm',
     text: label,
     attrs: { type: 'button', 'data-grs-page': page },
   });
-  element.disabled = disabled;
-  return element;
+  button.disabled = disabled;
+  return button;
 }
 
-export interface PanelRefs {
-  readonly root: HTMLElement;
-  readonly status: HTMLElement;
-  readonly body: HTMLElement;
-  readonly sortSelect: HTMLSelectElement;
-  readonly scopeSelect: HTMLSelectElement;
-  readonly searchInput: HTMLInputElement;
-  readonly refreshButton: HTMLButtonElement;
-  readonly modeButton: HTMLButtonElement;
-  readonly authBadge: HTMLElement;
-}
-
-/**
- * Builds the persistent panel shell. Re-rendering only replaces the body and
- * status text, so the search input keeps focus and caret position while typing.
- */
-export function createPanel(owner: string): PanelRefs {
-  const authBadge = h('span', {
-    className: 'grs-badge grs-badge--auth',
-    text: '公開のみ',
-  });
-
-  const refreshButton = actionButton('再取得', 'refresh', { variant: 'primary' });
-  const modeButton = actionButton('標準表示', 'standard', { variant: 'subtle' });
-
-  const sortSelect = h('select', {
-    className: 'grs-select',
-    attrs: { 'data-grs-control': 'sort', 'aria-label': '並び替え' },
-  });
-  for (const mode of SORT_MODES) {
-    sortSelect.append(
-      h('option', { text: SORT_LABELS[mode], attrs: { value: mode, title: SORT_HINTS[mode] } }),
-    );
-  }
-
-  const scopeSelect = h('select', {
-    className: 'grs-select',
-    attrs: { 'data-grs-control': 'scope', 'aria-label': '対象' },
-  });
-  for (const scope of SCOPES) {
-    scopeSelect.append(h('option', { text: SCOPE_LABELS[scope], attrs: { value: scope } }));
-  }
-
-  const searchInput = h('input', {
-    className: 'grs-input',
-    attrs: {
-      type: 'search',
-      'data-grs-control': 'query',
-      placeholder: '名前・説明で検索',
-      'aria-label': '名前・説明で検索',
-      autocomplete: 'off',
-      spellcheck: 'false',
-    },
-  });
-
-  const head = h('div', { className: 'grs-panel__head' }, [
-    h('div', { className: 'grs-panel__title' }, [
-      h('span', { className: 'grs-panel__logo', text: '⇅', attrs: { 'aria-hidden': 'true' } }),
-      h('span', { className: 'grs-panel__name', text: 'Repo Sorter' }),
-      h('span', { className: 'grs-panel__owner', text: `/${owner}` }),
-      authBadge,
-    ]),
-    h('div', { className: 'grs-panel__actions' }, [refreshButton, modeButton]),
-  ]);
-
-  const controls = h('div', { className: 'grs-panel__controls' }, [
-    h('label', { className: 'grs-field' }, [
-      h('span', { className: 'grs-field__label', text: '並び替え' }),
-      sortSelect,
-    ]),
-    h('label', { className: 'grs-field' }, [
-      h('span', { className: 'grs-field__label', text: '対象' }),
-      scopeSelect,
-    ]),
-    h('label', { className: 'grs-field grs-field--search' }, [
-      h('span', { className: 'grs-field__label', text: '検索' }),
-      searchInput,
-    ]),
-  ]);
-
-  const status = h('div', {
-    className: 'grs-status',
-    attrs: { role: 'status', 'aria-live': 'polite', 'data-grs-status': '' },
-  });
-
-  const body = h('div', { className: 'grs-body', attrs: { 'data-grs-body': '' } });
-
-  const root = h(
-    'section',
-    {
-      className: 'grs-panel',
+/** Append buttons, not radio inputs/labels: GitHub's autosubmit must not see them. */
+export function addSortItems(list: HTMLElement, selected: SortMode | null): void {
+  if (list.querySelector('[data-grs-sort]')) return;
+  const separator = h('div', { className: 'grs-menu-heading', text: 'Repo Sorter' });
+  separator.dataset.grsMenu = '';
+  list.append(separator);
+  for (const sort of SORT_MODES) {
+    const button = h('button', {
+      className: 'SelectMenu-item grs-menu-item',
       attrs: {
-        'data-grs-root': '',
-        'data-grs-owner': owner,
-        'aria-label': 'GitHub Repo Sorter',
+        type: 'button',
+        role: 'menuitemradio',
+        'aria-checked': String(sort === selected),
+        tabindex: '0',
+        'data-grs-sort': sort,
       },
-    },
-    [head, controls, status, body],
-  );
+    }, [
+      h('span', { className: 'grs-menu-check', text: '✓', attrs: { 'aria-hidden': 'true' } }),
+      h('span', { text: SORT_LABELS[sort] }),
+    ]);
+    list.append(button);
+  }
+}
 
-  return {
-    root,
-    status,
-    body,
-    sortSelect,
-    scopeSelect,
-    searchInput,
-    refreshButton,
-    modeButton,
-    authBadge,
-  };
+/** Returns null if GitHub's current Type value is not supported by the extension. */
+export function scopeFromNative(value: string): Scope | null {
+  if (value === '') return 'all';
+  if (value === 'fork') return 'forks';
+  if (value === 'source') return 'non-forks';
+  return null;
+}
+
+export function nativeTypeForScope(scope: Scope): string {
+  if (scope === 'forks') return 'fork';
+  if (scope === 'non-forks') return 'source';
+  return '';
 }
