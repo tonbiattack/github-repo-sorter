@@ -1,6 +1,7 @@
-import { ACTIVITY_LABELS, SORT_LABELS, formatDateTime } from '../shared/labels';
-import { parseTimestamp } from '../shared/dates';
 import { activityOf, forkTimestampOf } from '../shared/sort';
+import { parseTimestamp } from '../shared/dates';
+import { dateLabel, formatDateTime, formatNumber } from '../shared/labels';
+import { t } from '../shared/i18n';
 import { buildView } from '../shared/view';
 import type { View } from '../shared/view';
 import type { FetchData } from '../shared/protocol';
@@ -69,16 +70,17 @@ export function renderListContent(state: UiState): ListContent {
     attrs: { role: 'status', 'aria-live': 'polite', 'data-grs-status': '' },
   });
   if (state.loading) {
-    const progress = state.progress ? ` ${state.progress.received}件（${state.progress.page}ページ）` : '';
-    status.append(`リポジトリ取得中…${progress} GitHub標準一覧を表示中。`);
+    status.append(state.progress
+      ? t('statusLoading', t('statusLoadingProgress', state.progress.received, state.progress.page))
+      : t('statusLoadingIdle'));
     return { status, body: null };
   }
   if (state.error) {
     status.classList.add('grs-status--error');
-    status.append(`取得できませんでした: ${state.error.message} GitHub標準一覧を表示中。 `);
-    status.append(actionButton('再取得', 'retry'));
+    status.append(t('statusLoadFailed', state.error.message), ' ');
+    status.append(actionButton(t('retry'), 'retry'));
     if (state.error.kind === 'auth' || state.error.kind === 'owner-mismatch') {
-      status.append(' ', actionButton('公開一覧として取得', 'public-fallback'), ' ', actionButton('設定', 'open-options'));
+      status.append(' ', actionButton(t('publicFallback'), 'public-fallback'), ' ', actionButton(t('openOptions'), 'open-options'));
     }
     return { status, body: null };
   }
@@ -95,18 +97,24 @@ export function renderListContent(state: UiState): ListContent {
     language: state.language,
     visibility: state.visibility,
   });
-  const scopeLabel = data.authMode === 'authenticated' ? `認証済み ${data.login ?? ''}（非公開含む）` : '公開のみ';
-  const fetched = formatDateTime(data.fetchedAt);
-  status.append(`${scopeLabel} / ${SORT_LABELS[state.sort]} / 取得${data.repos.length}件 / 表示${view.totalFiltered}件${data.partial ? ' / 一部のみ' : ''} / 取得 ${fetched}${data.fromCache ? '（キャッシュ）' : ''} `);
-  status.append(actionButton('再取得', 'refresh'));
+
+  const scopeLabel = data.authMode === 'authenticated'
+    ? t('scopeAuthenticated', data.login ?? '')
+    : t('scopePublic');
+  const parts = [scopeLabel, t('statusFetched', data.repos.length), t('statusShown', view.totalFiltered)];
+  if (data.partial) parts.push(t('statusPartial'));
+  parts.push(t('statusFetchedAt', formatDateTime(data.fetchedAt)));
+  if (data.fromCache) parts.push(t('statusCached'));
+  status.append(`${parts.join(' / ')} `);
+  status.append(actionButton(t('refresh'), 'refresh'));
   if (data.error || data.partial) {
     status.classList.add('grs-status--warning');
-    status.append(` 一部のみ表示: ${data.error?.message ?? '全件を取得できませんでした。'}`);
+    status.append(' ', t('statusPartialNote', data.error?.message ?? ''));
   }
 
-  const body = h('div', { attrs: { 'data-grs-list': '', 'aria-label': 'Repo Sorter リポジトリ一覧' } });
+  const body = h('div', { attrs: { 'data-grs-list': '', 'aria-label': t('ariaRepoList') } });
   if (view.page.total === 0) {
-    body.append(h('div', { className: 'blankslate grs-empty', text: '条件に一致するリポジトリがありません。' }));
+    body.append(h('div', { className: 'blankslate grs-empty', text: t('emptyFiltered') }));
   } else {
     body.append(h('ul', { className: 'grs-list' }, view.page.items.map((repo) => createRepoRow(repo, state.sort))));
     body.append(createPager(view));
@@ -122,9 +130,8 @@ export function renderListContent(state: UiState): ListContent {
  */
 function createStandardHint(): HTMLElement {
   return h('p', { className: 'grs-hint color-fg-muted f6' }, [
-    'Star ボタン・Fork 元リンク・コントリビューション グラフは GitHub 標準表示でのみ利用できます。',
-    ' ',
-    actionButton('標準表示に切り替え', 'standard'),
+    `${t('standardHint')} `,
+    actionButton(t('switchToStandard'), 'standard'),
   ]);
 }
 
@@ -132,12 +139,12 @@ function selectedDate(repo: Repo, mode: SortMode): { label: string; ms: number |
   switch (mode) {
     case 'activity': {
       const activity = activityOf(repo);
-      return { label: ACTIVITY_LABELS[activity.kind], ms: activity.ms };
+      return { label: dateLabel(mode, activity.kind), ms: activity.ms };
     }
-    case 'created': return { label: '作成', ms: parseTimestamp(repo.createdAt) };
-    case 'forked': return { label: 'Fork', ms: forkTimestampOf(repo) };
-    case 'pushed': return { label: 'Push', ms: parseTimestamp(repo.pushedAt) };
-    case 'updated': return { label: '更新', ms: parseTimestamp(repo.updatedAt) };
+    case 'created': return { label: dateLabel(mode, 'create'), ms: parseTimestamp(repo.createdAt) };
+    case 'forked': return { label: dateLabel(mode, 'fork'), ms: forkTimestampOf(repo) };
+    case 'pushed': return { label: dateLabel(mode, 'push'), ms: parseTimestamp(repo.pushedAt) };
+    case 'updated': return { label: dateLabel(mode, 'create'), ms: parseTimestamp(repo.updatedAt) };
   }
 }
 
@@ -177,25 +184,28 @@ export function createRepoRow(repo: Repo, mode: SortMode): HTMLLIElement {
   if (repo.stars !== null) {
     metadata.append(h('a', {
       className: 'Link--muted mr-3 grs-repo__stars',
-      text: `★ ${repo.stars.toLocaleString()}`,
-      attrs: { href: `${repo.htmlUrl}/stargazers`, 'aria-label': `Stars: ${repo.stars}` },
+      text: t('starsCount', formatNumber(repo.stars)),
+      attrs: {
+        href: `${repo.htmlUrl}/stargazers`,
+        'aria-label': t('starsAria', formatNumber(repo.stars)),
+      },
     }));
   }
   if (repo.forks !== null) {
     metadata.append(h('a', {
       className: 'Link--muted mr-3 grs-repo__forks',
-      text: `Forks ${repo.forks.toLocaleString()}`,
+      text: t('forksCount', formatNumber(repo.forks)),
       attrs: { href: `${repo.htmlUrl}/forks` },
     }));
   }
   const date = selectedDate(repo, mode);
   metadata.append(date.ms === null
-    ? h('span', { text: `${date.label}: 日時なし` })
-    : h('time', { text: `${date.label}: ${formatDateTime(date.ms)}`, attrs: { datetime: new Date(date.ms).toISOString() } }));
+    ? h('span', { text: t('dateMissing', date.label) })
+    : h('time', { text: t('dateWithLabel', date.label, formatDateTime(date.ms)), attrs: { datetime: new Date(date.ms).toISOString() } }));
 
   const main = h('div', { className: 'col-10 col-lg-9 d-inline-block' }, [
     title,
-    repo.fork ? h('div', { className: 'f6 color-fg-muted', text: 'Fork' }) : null,
+    repo.fork ? h('div', { className: 'f6 color-fg-muted', text: t('forkedFromHint') }) : null,
     repo.description ? h('p', { className: 'col-9 d-inline-block color-fg-muted mb-2 tmp-pr-4 grs-repo__desc', text: repo.description }) : null,
     metadata,
   ]);
@@ -207,9 +217,12 @@ export function createRepoRow(repo: Repo, mode: SortMode): HTMLLIElement {
 
 export function createPager(view: View): HTMLElement {
   const page = view.page;
-  return h('nav', { className: 'grs-pager paginate-container', attrs: { 'aria-label': 'ページ送り' } }, [
-    pageButton('前へ', 'prev', page.page <= 1),
-    h('span', { className: 'grs-pager__status', text: `${page.start}–${page.end} / ${page.total}件（${page.page}/${page.totalPages}ページ）` }),
-    pageButton('次へ', 'next', page.page >= page.totalPages),
+  return h('nav', { className: 'grs-pager paginate-container', attrs: { 'aria-label': t('pagerAria') } }, [
+    pageButton(t('pagerPrev'), 'prev', page.page <= 1),
+    h('span', {
+      className: 'grs-pager__status',
+      text: t('pagerStatus', page.start, page.end, page.total, page.page, page.totalPages),
+    }),
+    pageButton(t('pagerNext'), 'next', page.page >= page.totalPages),
   ]);
 }

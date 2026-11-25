@@ -1,4 +1,5 @@
 import { parseTimestamp } from './dates';
+import { formatDateTime, t } from './i18n';
 import type { AuthMode, FetchErrorInfo, Repo } from './types';
 
 export const DEFAULT_API_BASE = 'https://api.github.com';
@@ -226,15 +227,6 @@ function parseRetryAfterMs(header: string | null, nowMs: number): number | null 
   return null;
 }
 
-function formatLocalTime(ms: number): string {
-  return new Intl.DateTimeFormat('ja-JP', {
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(new Date(ms));
-}
-
 async function classifyResponse(
   response: Response,
   nowMs: number,
@@ -246,7 +238,7 @@ async function classifyResponse(
     return {
       info: {
         kind: 'auth',
-        message: 'GitHub の認証に失敗しました。アクセストークンを確認してください。',
+        message: t('apiAuthFailed'),
         status,
       },
       retryable: false,
@@ -256,8 +248,7 @@ async function classifyResponse(
     return {
       info: {
         kind: 'not-found',
-        message:
-          'リポジトリ一覧を取得できませんでした（ユーザー名の誤り、または表示権限がありません）。',
+        message: t('apiNotFound'),
         status,
       },
       retryable: false,
@@ -273,8 +264,8 @@ async function classifyResponse(
     const resetAt = Number.isFinite(resetSeconds) && resetSeconds > 0 ? resetSeconds * 1000 : null;
     const retryAt = retryAfterMs !== null ? nowMs + retryAfterMs : resetAt;
     const message = retryAt
-      ? `GitHub API のレート制限に達しました。${formatLocalTime(retryAt)} ごろ再取得してください。`
-      : 'GitHub API のレート制限に達しました。しばらく待ってから再取得してください。';
+      ? t('apiRateLimitedAt', formatDateTime(retryAt))
+      : t('apiRateLimited');
     const info: FetchErrorInfo =
       retryAt === null
         ? { kind: 'rate-limit', message, status }
@@ -291,7 +282,7 @@ async function classifyResponse(
     return {
       info: {
         kind: 'forbidden',
-        message: 'GitHub API へのアクセスが拒否されました（権限不足の可能性があります）。',
+        message: t('apiForbidden'),
         status,
       },
       retryable: false,
@@ -302,7 +293,7 @@ async function classifyResponse(
     return {
       info: {
         kind: 'http',
-        message: `GitHub API が一時的なエラー（${status}）を返しました。`,
+        message: t('apiServerError', status),
         status,
       },
       retryable: true,
@@ -310,7 +301,7 @@ async function classifyResponse(
   }
 
   return {
-    info: { kind: 'http', message: `GitHub API が ${status} を返しました。`, status },
+    info: { kind: 'http', message: t('apiHttpError', status), status },
     retryable: false,
   };
 }
@@ -339,7 +330,7 @@ async function requestWithRetry(options: RequestOptions): Promise<Response> {
       if (attempt >= options.maxRetries) {
         throw new ApiError({
           kind: 'network',
-          message: 'GitHub API へ接続できませんでした。ネットワーク接続を確認してください。',
+          message: t('apiNetworkError'),
         });
       }
       attempt += 1;
@@ -369,7 +360,7 @@ function isSameOriginUrl(url: string, baseUrl: string): boolean {
 
 function toFetchError(error: unknown): FetchErrorInfo {
   if (error instanceof ApiError) return error.info;
-  return { kind: 'unknown', message: '予期しないエラーが発生しました。' };
+  return { kind: 'unknown', message: t('errUnexpectedResponse') };
 }
 
 /**
@@ -404,7 +395,7 @@ export async function fetchAllRepos(options: FetchAllOptions): Promise<FetchAllR
         partial: true,
         error: {
           kind: 'max-pages',
-          message: `取得ページ数の上限（${maxPages} ページ）に達しました。表示は一部のみです。`,
+          message: t('apiMaxPages', maxPages),
         },
       };
     }
@@ -439,7 +430,7 @@ export async function fetchAllRepos(options: FetchAllOptions): Promise<FetchAllR
     } catch {
       const info: FetchErrorInfo = {
         kind: 'invalid-response',
-        message: 'GitHub API の応答を読み取れませんでした。',
+        message: t('apiInvalidResponse'),
       };
       if (pagesFetched > 0) {
         return { repos: [...seen.values()], pagesFetched, partial: true, error: info };
@@ -450,7 +441,7 @@ export async function fetchAllRepos(options: FetchAllOptions): Promise<FetchAllR
     if (!Array.isArray(payload)) {
       const info: FetchErrorInfo = {
         kind: 'invalid-response',
-        message: 'GitHub API が想定外の形式を返しました。',
+        message: t('apiUnexpectedShape'),
       };
       if (pagesFetched > 0) {
         return { repos: [...seen.values()], pagesFetched, partial: true, error: info };
@@ -480,7 +471,7 @@ export async function fetchAllRepos(options: FetchAllOptions): Promise<FetchAllR
           partial: true,
           error: {
             kind: 'invalid-link',
-            message: 'GitHub API が同じページURLを繰り返し返したため、取得を停止しました。',
+            message: t('apiLinkRepeat'),
           },
         };
       }
@@ -495,7 +486,7 @@ export async function fetchAllRepos(options: FetchAllOptions): Promise<FetchAllR
         partial: true,
         error: {
           kind: 'invalid-link',
-          message: 'GitHub API が想定外のホストのページURLを返したため、取得を停止しました。',
+          message: t('apiLinkHost'),
         },
       };
     }
@@ -537,7 +528,7 @@ export async function fetchViewer(options: FetchViewerOptions): Promise<Viewer> 
   } catch {
     throw new ApiError({
       kind: 'invalid-response',
-      message: '認証済みユーザー情報を読み取れませんでした。',
+      message: t('apiViewerRead'),
     });
   }
 
@@ -548,7 +539,7 @@ export async function fetchViewer(options: FetchViewerOptions): Promise<Viewer> 
   if (!login || !Number.isFinite(id)) {
     throw new ApiError({
       kind: 'invalid-response',
-      message: '認証済みユーザー情報を取得できませんでした。',
+      message: t('apiViewerMissing'),
     });
   }
 

@@ -69,6 +69,8 @@ machines. Removing the token on the options page deletes both copies.
   persisted in any cache.
 - No analytics, crash reporting, or advertising identifiers.
 - No remote code is loaded; all code ships inside the extension package.
+- No external translation service is used: the English and Japanese UI strings
+  are bundled with the extension (`_locales`).
 
 ## Permissions and why they are needed
 

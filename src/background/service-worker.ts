@@ -1,3 +1,4 @@
+import { t } from '../shared/i18n';
 import { fetchAllRepos, fetchViewer } from '../shared/api';
 import { TtlCache } from '../shared/cache';
 import { CHANNEL, parseRequest } from '../shared/protocol';
@@ -83,7 +84,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     () => {
       sendResponse({
         ok: false,
-        error: { kind: 'unknown', message: 'メッセージの処理に失敗しました。' },
+        error: { kind: 'unknown', message: t('messageFailed') },
       });
     },
   );

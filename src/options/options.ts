@@ -1,5 +1,7 @@
 import { CHANNEL } from '../shared/protocol';
 import type { HandlerResponse } from '../shared/protocol';
+import { currentLocale, t } from '../shared/i18n';
+import type { MessageKey } from '../shared/i18n';
 
 function byId<T extends HTMLElement>(id: string): T {
   const element = document.getElementById(id);
@@ -18,6 +20,20 @@ const clearCacheButton = byId<HTMLButtonElement>('clear-cache');
 
 type Tone = 'ok' | 'error' | 'muted';
 
+/** Applies the browser locale to the static markup before anything else. */
+function localizeDocument(): void {
+  document.documentElement.lang = currentLocale();
+  document.title = t('optionsTitle');
+  for (const element of document.querySelectorAll<HTMLElement>('[data-i18n]')) {
+    const key = element.dataset.i18n as MessageKey | undefined;
+    if (key) element.textContent = t(key);
+  }
+  for (const element of document.querySelectorAll<HTMLInputElement>('[data-i18n-placeholder]')) {
+    const key = element.dataset.i18nPlaceholder as MessageKey | undefined;
+    if (key) element.placeholder = t(key);
+  }
+}
+
 function setStatus(text: string, tone: Tone = 'muted'): void {
   statusElement.textContent = text;
   statusElement.dataset.tone = tone;
@@ -34,22 +50,22 @@ async function send(message: unknown): Promise<HandlerResponse | null> {
 }
 
 function storageLabel(persistent: boolean): string {
-  return persistent ? 'ブラウザ再起動後も保持' : 'セッション中のみ保持';
+  return persistent ? t('storagePersistent') : t('storageSession');
 }
 
 async function refreshStatus(): Promise<void> {
-  setStatus('確認中…');
+  setStatus(t('statusChecking'));
   const response = await send({ channel: CHANNEL, type: 'auth-status' });
   if (response === null) {
-    setStatus('バックグラウンドと通信できませんでした。拡張機能を読み込み直してください。', 'error');
+    setStatus(t('statusBackgroundUnavailable'), 'error');
     return;
   }
   if (!response.ok) {
-    setStatus(`認証状態を確認できませんでした: ${response.error.message}`, 'error');
+    setStatus(t('statusUnavailable', response.error.message), 'error');
     return;
   }
   if (response.kind !== 'auth-status') {
-    setStatus('認証状態を確認できませんでした。', 'error');
+    setStatus(t('statusUnavailable', ''), 'error');
     return;
   }
   const { configured, login, persistent } = response.data;
@@ -57,14 +73,14 @@ async function refreshStatus(): Promise<void> {
   persistWarning.hidden = !persistent;
 
   if (configured && login) {
-    setStatus(`設定済み: ${login} として認証されています（${storageLabel(persistent)}）。`, 'ok');
+    setStatus(t('statusConfigured', login, storageLabel(persistent)), 'ok');
     return;
   }
   if (configured) {
-    setStatus('トークンは設定されていますが、ユーザー情報を取得できませんでした。', 'error');
+    setStatus(t('statusConfiguredNoUser'), 'error');
     return;
   }
-  setStatus('未設定: 公開リポジトリのみ取得します。', 'muted');
+  setStatus(t('statusNotConfigured'), 'muted');
 }
 
 persistInput.addEventListener('change', () => {
@@ -75,12 +91,12 @@ form.addEventListener('submit', async (event) => {
   event.preventDefault();
   const token = tokenInput.value.trim();
   if (token === '') {
-    setStatus('トークンを入力してください。', 'error');
+    setStatus(t('tokenRequired'), 'error');
     return;
   }
 
   saveButton.disabled = true;
-  setStatus('トークンを検証しています…');
+  setStatus(t('validating'));
   const response = await send({
     channel: CHANNEL,
     type: 'auth-set',
@@ -90,19 +106,16 @@ form.addEventListener('submit', async (event) => {
   saveButton.disabled = false;
 
   if (response === null) {
-    setStatus('保存できませんでした。拡張機能を読み込み直してください。', 'error');
+    setStatus(t('saveFailedBackground'), 'error');
     return;
   }
   if (!response.ok) {
-    setStatus(`保存に失敗しました: ${response.error.message}`, 'error');
+    setStatus(t('saveFailed', response.error.message), 'error');
     return;
   }
   if (response.kind === 'auth-status' && response.data.login) {
     tokenInput.value = '';
-    setStatus(
-      `保存しました: ${response.data.login} として認証されています（${storageLabel(response.data.persistent)}）。`,
-      'ok',
-    );
+    setStatus(t('savedConfigured', response.data.login, storageLabel(response.data.persistent)), 'ok');
     return;
   }
   await refreshStatus();
@@ -113,11 +126,11 @@ clearButton.addEventListener('click', async () => {
   const response = await send({ channel: CHANNEL, type: 'auth-clear' });
   clearButton.disabled = false;
   if (response === null || !response.ok) {
-    setStatus('トークンを解除できませんでした。', 'error');
+    setStatus(t('clearFailed'), 'error');
     return;
   }
   await refreshStatus();
-  setStatus('トークンを解除しました（保存済みのコピーも削除）。公開リポジトリのみ取得します。', 'muted');
+  setStatus(t('cleared'), 'muted');
 });
 
 clearCacheButton.addEventListener('click', async () => {
@@ -125,10 +138,11 @@ clearCacheButton.addEventListener('click', async () => {
   const response = await send({ channel: CHANNEL, type: 'cache-clear' });
   clearCacheButton.disabled = false;
   if (response === null || !response.ok) {
-    setStatus('キャッシュを消去できませんでした。', 'error');
+    setStatus(t('cacheClearFailed'), 'error');
     return;
   }
-  setStatus('メモリ上のキャッシュを消去しました。', 'ok');
+  setStatus(t('cacheCleared'), 'ok');
 });
 
+localizeDocument();
 void refreshStatus();

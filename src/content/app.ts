@@ -1,3 +1,4 @@
+import { t } from '../shared/i18n';
 import { CHANNEL, isProgressMessage, parseRepoListUrl } from '../shared/protocol';
 import type { FetchData, FetchRequest, HandlerResponse, Request } from '../shared/protocol';
 import { DEFAULT_SETTINGS, isSortMode, sanitizeSettings } from '../shared/settings';
@@ -356,7 +357,7 @@ export class SorterApp {
     if (!state || !native) return;
     const type = typeFilterFromNative(checkedValue(native.type, 'type'));
     if (type === null) {
-      state.error = { kind: 'unknown', message: 'このTypeは独自ソートで使えません。Allに戻してから選択してください。' };
+      state.error = { kind: 'unknown', message: t('errUnsupportedType') };
       state.settings = { ...state.settings, view: 'standard', sort };
       this.cancelRequest();
       state.loading = false;
@@ -480,12 +481,12 @@ export class SorterApp {
     if (generation !== this.generation || this.requestId !== requestId || !this.state || !this.isCustomActive()) return;
     this.requestId = null;
     this.state.loading = false;
-    if (!response) this.state.error = { kind: 'unknown', message: '拡張機能から応答がありません。拡張機能を再読み込みしてください。' };
+    if (!response) this.state.error = { kind: 'unknown', message: t('errNoResponse') };
     else if (!response.ok) this.state.error = response.error;
     else if (response.kind === 'fetch') {
       this.state.data = response.data;
       this.state.page = 1;
-    } else this.state.error = { kind: 'unknown', message: '予期しない応答を受け取りました。' };
+    } else this.state.error = { kind: 'unknown', message: t('errUnexpectedResponse') };
     if (this.state.error) this.state.data = null;
     if (this.native && !this.state.error) {
       this.state.query = this.native.search.value;

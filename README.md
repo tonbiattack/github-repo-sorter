@@ -8,13 +8,14 @@ It adds its options to GitHub's own **Sort** menu and reuses GitHub's search box
 and Type / Language / Visibility filters, so there is no separate panel to learn.
 No local server, no analytics, no third-party servers.
 
-- Specification: [docs/SPEC.md](docs/SPEC.md)
-- Implementation notes (decisions, deviations, verification): [docs/IMPLEMENTATION-NOTES.md](docs/IMPLEMENTATION-NOTES.md)
-- Privacy policy: [docs/PRIVACY.md](docs/PRIVACY.md)
-- Store listing copy: [docs/STORE-LISTING.md](docs/STORE-LISTING.md)
-- Store screenshots: `docs/screenshots/store-1280x800-{light,dark}.png`
+[日本語の説明](#日本語) · [Specification](docs/SPEC.md) · [Privacy](docs/PRIVACY.md) · [Implementation notes](docs/IMPLEMENTATION-NOTES.md)
 
 > This project is not affiliated with GitHub, Inc.
+
+![GitHub's Sort menu with a Repo Sorter order active](docs/screenshots/store-1280x800-light.png)
+
+The order lives in GitHub's own Sort menu. The list above is sorted by
+"Created · Forked · Pushed" while GitHub's search box and filters stay in place.
 
 ## Features
 
@@ -28,29 +29,29 @@ No local server, no analytics, no third-party servers.
   mirror labels, language with GitHub's colour, star and fork counts, and the
   timestamp that produced the current order.
 - **Light and dark themes** follow GitHub's own colour tokens.
+- **English and Japanese UI**: follows the browser's display language
+  (`_locales`), falling back to English for other languages.
 - **Per-owner settings** are restored on your next visit.
 - **Explicit states** for loading, empty, error, and partial results. If
   anything fails, GitHub's own list stays usable.
 - **Optional read-only token** to include your private repositories.
 
-## Requirements
-
-- Chrome or Edge (Chromium 116+). Development and verification used Chromium 159.
-- Permissions: `storage` and `https://api.github.com/*` only.
-
 ## Install
 
-```powershell
-npm ci
-npm run build
-```
+The extension is not on the Chrome Web Store yet, so install it from source:
 
-1. Open `chrome://extensions` and enable **Developer mode**.
-2. Choose **Load unpacked** and select this repository's `dist/` directory.
-3. Open `https://github.com/<owner>?tab=repositories`.
+1. Download or clone this repository.
+2. Run `npm ci` and `npm run build`.
+3. Open `chrome://extensions` and enable **Developer mode**.
+4. Choose **Load unpacked** and select this repository's `dist/` directory.
+
+Then open `https://github.com/<owner>?tab=repositories`.
 
 `dist/` is a build artifact. After changing source, run `npm run build` (or
 `npm run watch`) and press the reload button on `chrome://extensions`.
+
+> A store link will be added here once the listing is published. No unreleased
+> link or badge is shown until then.
 
 ## Usage
 
@@ -61,7 +62,7 @@ npm run build
   fetched set before pagination.
 - **Search**: GitHub's search box filters by name and description; multiple
   words must all match.
-- **Refresh**: "再取得" bypasses the 5-minute memory cache.
+- **Refresh**: "Refresh" (再取得) bypasses the 5-minute memory cache.
 - **Back to GitHub's list**: pick any standard entry in the Sort menu. The
   extension restores GitHub's list, search, and paging immediately.
 
@@ -84,17 +85,19 @@ npm run build
      read-only — it also grants write access.
 2. Open the extension's options page (toolbar icon, or `chrome://extensions` →
    Details → Extension options).
-3. Paste the token and press "保存して検証".
+3. Paste the token and press **Save and verify** (保存して検証).
 
 By default the token is stored only in `chrome.storage.session`: it survives
 service-worker restarts but not a browser restart, and it is never handed to a
-content script. Ticking "ブラウザを再起動しても保持する" additionally stores it in
-`chrome.storage.local`, which is plain text on disk — see
-[docs/PRIVACY.md](docs/PRIVACY.md) before enabling it.
+content script. Ticking **Keep the token after a browser restart**
+(ブラウザを再起動しても保持する) additionally stores it in `chrome.storage.local`,
+which is plain text on disk — see [docs/PRIVACY.md](docs/PRIVACY.md) before
+enabling it.
 
 Authenticated and public listings use separate caches. If authentication fails
 or the token belongs to another account, the extension shows an error and an
-explicit "公開一覧として取得" action instead of silently falling back.
+explicit **Load public list** (公開一覧として取得) action instead of silently
+falling back.
 
 ## Permissions and privacy
 
@@ -106,6 +109,22 @@ explicit "公開一覧として取得" action instead of silently falling back.
 - Repository data is cached in service-worker memory for 5 minutes and never
   persisted.
 - HTML is rendered with `textContent`; API strings are never interpreted as markup.
+
+## Language
+
+The UI follows the browser's display language through Chrome's standard i18n
+(`_locales/en` and `_locales/ja`, `default_locale: en`). Japanese is used when
+the display language starts with `ja`; every other language falls back to
+English. Dates and numbers are formatted with `Intl` for the active locale while
+sorting still compares UTC timestamps. Repository names and descriptions are
+never translated.
+
+To verify a language explicitly, run the browser check with `--lang`:
+
+```powershell
+node scripts/browser-check.mjs --lang ja --probe
+node scripts/browser-check.mjs --lang fr --probe   # falls back to English
+```
 
 ## Development
 
@@ -196,6 +215,8 @@ Visibility は GitHub のものをそのまま使います。ローカルサー�
 
 > 本拡張は GitHub, Inc. とは関係ありません。
 
+![日本語UIのストア用スクリーンショット](docs/screenshots/store-1280x800-ja-light.png)
+
 ### 主な機能
 
 - GitHub 標準の Sort メニューに「作成・Fork・Push順」（初期値）、作成順、
@@ -205,20 +226,22 @@ Visibility は GitHub のものをそのまま使います。ローカルサー�
 - 各行に名前・リンク・説明・公開範囲・Fork/Archived/Template/Mirror・
   言語（GitHub の色）・Star 数・Fork 数・並び順の基準日時を表示
 - ライト / ダークは GitHub の配色に追従
+- ブラウザの表示言語に応じて英語 / 日本語を自動切替（それ以外は英語）
 - owner ごとに並び順・絞り込みを保存して復元
 - 取得中・空・エラー・部分取得を明示。失敗時は GitHub 標準一覧をそのまま利用可能
 - 任意の読み取り専用トークンで非公開リポジトリも対象
 
 ### 導入
 
-```powershell
-npm ci
-npm run build
-```
+ストア未公開のため、現時点ではソースから導入します。
 
-`chrome://extensions` でデベロッパーモードを有効にし、「パッケージ化されていない
-拡張機能を読み込む」で `dist/` を選択します。その後
-`https://github.com/<owner>?tab=repositories` を開きます。
+1. このリポジトリを取得します。
+2. `npm ci` と `npm run build` を実行します。
+3. `chrome://extensions` でデベロッパーモードを有効にします。
+4. 「パッケージ化されていない拡張機能を読み込む」で `dist/` を選択します。
+
+その後 `https://github.com/<owner>?tab=repositories` を開きます。
+ストア公開後はこの節に正式なストア URL を追加します（未公開リンクは載せません）。
 
 ### 使い方
 

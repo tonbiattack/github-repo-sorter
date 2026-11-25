@@ -1,0 +1,365 @@
+{
+  "extName": {
+    "message": "GitHub Repo Sorter"
+  },
+  "extDescription": {
+    "message": "GitHub のリポジトリ一覧を、作成・Fork・Push を統合した最近の活動順に並べ替えます。"
+  },
+  "actionTitle": {
+    "message": "GitHub Repo Sorter の設定を開く"
+  },
+  "sortActivity": {
+    "message": "作成・Fork・Push順"
+  },
+  "sortCreated": {
+    "message": "作成順"
+  },
+  "sortForked": {
+    "message": "Fork順"
+  },
+  "sortPushed": {
+    "message": "Push順"
+  },
+  "sortUpdated": {
+    "message": "情報更新順"
+  },
+  "sortActivityHint": {
+    "message": "作成日時とPush日時のうち新しい方で並べます"
+  },
+  "sortCreatedHint": {
+    "message": "リポジトリの作成日時で並べます"
+  },
+  "sortForkedHint": {
+    "message": "Forkした日時で並べます（Fork以外は末尾）"
+  },
+  "sortPushedHint": {
+    "message": "最後にPushされた日時で並べます"
+  },
+  "sortUpdatedHint": {
+    "message": "説明の変更などを含む更新日時で並べます"
+  },
+  "menuHeading": {
+    "message": "Repo Sorter"
+  },
+  "kindPush": {
+    "message": "Push"
+  },
+  "kindFork": {
+    "message": "Fork"
+  },
+  "kindCreate": {
+    "message": "作成"
+  },
+  "dateCreated": {
+    "message": "作成"
+  },
+  "dateForked": {
+    "message": "Fork"
+  },
+  "datePushed": {
+    "message": "Push"
+  },
+  "dateUpdated": {
+    "message": "更新"
+  },
+  "dateNone": {
+    "message": "日時なし"
+  },
+  "dateWithLabel": {
+    "message": "$1: $2"
+  },
+  "dateMissing": {
+    "message": "$1: 日時なし"
+  },
+  "statusLoading": {
+    "message": "リポジトリ取得中… $1 GitHub標準一覧を表示中。"
+  },
+  "statusLoadingIdle": {
+    "message": "リポジトリ取得中… GitHub標準一覧を表示中。"
+  },
+  "statusLoadingProgress": {
+    "message": "$1件（$2ページ）"
+  },
+  "statusLoadFailed": {
+    "message": "取得できませんでした: $1 GitHub標準一覧を表示中。"
+  },
+  "scopeAuthenticated": {
+    "message": "認証済み $1（非公開含む）"
+  },
+  "scopePublic": {
+    "message": "公開のみ"
+  },
+  "statusFetched": {
+    "message": "取得$1件"
+  },
+  "statusShown": {
+    "message": "表示$1件"
+  },
+  "statusPartial": {
+    "message": "一部のみ"
+  },
+  "statusFetchedAt": {
+    "message": "取得 $1"
+  },
+  "statusCached": {
+    "message": "キャッシュ"
+  },
+  "statusPartialNote": {
+    "message": "一部のみ表示: $1"
+  },
+  "refresh": {
+    "message": "再取得"
+  },
+  "retry": {
+    "message": "再取得"
+  },
+  "publicFallback": {
+    "message": "公開一覧として取得"
+  },
+  "openOptions": {
+    "message": "設定"
+  },
+  "switchToStandard": {
+    "message": "標準表示に切り替え"
+  },
+  "emptyFiltered": {
+    "message": "条件に一致するリポジトリがありません。"
+  },
+  "ariaRepoList": {
+    "message": "Repo Sorter で並べ替えたリポジトリ一覧"
+  },
+  "pagerAria": {
+    "message": "ページ送り"
+  },
+  "pagerPrev": {
+    "message": "前へ"
+  },
+  "pagerNext": {
+    "message": "次へ"
+  },
+  "pagerStatus": {
+    "message": "$1–$2 / $3件（$4/$5ページ）"
+  },
+  "standardHint": {
+    "message": "Star ボタン・Fork 元リンク・コントリビューション グラフは GitHub 標準表示でのみ利用できます。"
+  },
+  "starsAria": {
+    "message": "Stars: $1"
+  },
+  "starsCount": {
+    "message": "★ $1"
+  },
+  "forksCount": {
+    "message": "Fork $1"
+  },
+  "forkedFromHint": {
+    "message": "Fork"
+  },
+  "errUnsupportedType": {
+    "message": "この Type は独自ソートで使えません。All に戻してから選択してください。"
+  },
+  "errNoResponse": {
+    "message": "拡張機能から応答がありません。拡張機能を再読み込みしてください。"
+  },
+  "errUnexpectedResponse": {
+    "message": "予期しない応答を受け取りました。"
+  },
+  "errAuthChanged": {
+    "message": "認証状態が変更されました。"
+  },
+  "apiAuthFailed": {
+    "message": "GitHub の認証に失敗しました。アクセストークンを確認してください。"
+  },
+  "apiNotFound": {
+    "message": "リポジトリ一覧を取得できませんでした（ユーザー名の誤り、または表示権限がありません）。"
+  },
+  "apiRateLimited": {
+    "message": "GitHub API のレート制限に達しました。しばらく待ってから再取得してください。"
+  },
+  "apiRateLimitedAt": {
+    "message": "GitHub API のレート制限に達しました。$1 ごろ再取得してください。"
+  },
+  "apiForbidden": {
+    "message": "GitHub API へのアクセスが拒否されました（権限不足の可能性があります）。"
+  },
+  "apiServerError": {
+    "message": "GitHub API が一時的なエラー（$1）を返しました。"
+  },
+  "apiHttpError": {
+    "message": "GitHub API が $1 を返しました。"
+  },
+  "apiNetworkError": {
+    "message": "GitHub API へ接続できませんでした。ネットワーク接続を確認してください。"
+  },
+  "apiMaxPages": {
+    "message": "取得ページ数の上限（$1 ページ）に達しました。表示は一部のみです。"
+  },
+  "apiInvalidResponse": {
+    "message": "GitHub API の応答を読み取れませんでした。"
+  },
+  "apiUnexpectedShape": {
+    "message": "GitHub API が想定外の形式を返しました。"
+  },
+  "apiLinkRepeat": {
+    "message": "GitHub API が同じページURLを繰り返し返したため、取得を停止しました。"
+  },
+  "apiLinkHost": {
+    "message": "GitHub API が想定外のホストのページURLを返したため、取得を停止しました。"
+  },
+  "apiViewerRead": {
+    "message": "認証済みユーザー情報を読み取れませんでした。"
+  },
+  "apiViewerMissing": {
+    "message": "認証済みユーザー情報を取得できませんでした。"
+  },
+  "apiAborted": {
+    "message": "取得をキャンセルしました。"
+  },
+  "forbiddenSender": {
+    "message": "送信元のページを検証できませんでした。"
+  },
+  "forbiddenOwner": {
+    "message": "リクエストのオーナーがページと一致しません。"
+  },
+  "authTokenMissing": {
+    "message": "アクセストークンが設定されていません。拡張機能の設定から登録してください。"
+  },
+  "ownerMismatch": {
+    "message": "認証中のアカウント（$1）はこのページのオーナー（$2）と一致しません。公開一覧として取得するか、トークンを解除してください。"
+  },
+  "forbiddenSettingsRead": {
+    "message": "設定の取得元を検証できませんでした。"
+  },
+  "forbiddenSettingsWrite": {
+    "message": "設定の保存元を検証できませんでした。"
+  },
+  "forbiddenAuthStatus": {
+    "message": "認証状態を取得する権限がありません。"
+  },
+  "forbiddenAuthSet": {
+    "message": "認証情報を設定する権限がありません。"
+  },
+  "forbiddenAuthClear": {
+    "message": "認証情報を解除する権限がありません。"
+  },
+  "forbiddenCacheClear": {
+    "message": "キャッシュを消去する権限がありません。"
+  },
+  "messageFailed": {
+    "message": "メッセージの処理に失敗しました。"
+  },
+  "optionsTitle": {
+    "message": "GitHub Repo Sorter の設定"
+  },
+  "optionsHeading": {
+    "message": "GitHub Repo Sorter"
+  },
+  "optionsLead": {
+    "message": "GitHub プロフィールのリポジトリ一覧を、作成・Fork・Push を同じ活動として扱い、最近触った順に並べ替えます。"
+  },
+  "tokenHeading": {
+    "message": "アクセストークン（任意）"
+  },
+  "tokenHint": {
+    "message": "非公開リポジトリも一覧に含める場合に登録します。未登録の場合は公開リポジトリのみを取得します。"
+  },
+  "statusChecking": {
+    "message": "確認中…"
+  },
+  "statusBackgroundUnavailable": {
+    "message": "バックグラウンドと通信できませんでした。拡張機能を読み込み直してください。"
+  },
+  "statusUnavailable": {
+    "message": "認証状態を確認できませんでした: $1"
+  },
+  "statusConfigured": {
+    "message": "設定済み: $1 として認証されています（$2）。"
+  },
+  "statusConfiguredNoUser": {
+    "message": "トークンは設定されていますが、ユーザー情報を取得できませんでした。"
+  },
+  "statusNotConfigured": {
+    "message": "未設定: 公開リポジトリのみ取得します。"
+  },
+  "storageSession": {
+    "message": "セッション中のみ保持"
+  },
+  "storagePersistent": {
+    "message": "ブラウザ再起動後も保持"
+  },
+  "tokenLabel": {
+    "message": "読み取り専用のアクセストークン"
+  },
+  "tokenPlaceholder": {
+    "message": "github_pat_… または ghp_…"
+  },
+  "persistLabel": {
+    "message": "ブラウザを再起動しても保持する（chrome.storage.local に平文で保存）"
+  },
+  "persistWarning": {
+    "message": "この端末のディスク上にトークンが平文で残ります。共用 PC や、端末の盗難・マルウェアが心配な場合はオフのままにしてください。オフの場合、ブラウザを終了するとトークンは消えます。"
+  },
+  "buttonSave": {
+    "message": "保存して検証"
+  },
+  "buttonClearToken": {
+    "message": "トークンを解除"
+  },
+  "buttonClearCache": {
+    "message": "キャッシュを消去"
+  },
+  "tokenSectionNote1": {
+    "message": "推奨は fine-grained トークンで、対象リポジトリの Metadata: Read のみを付与します。クラシックトークンの repo スコープは読み取り専用ではありません（書き込み権限を含みます）。"
+  },
+  "tokenSectionNote2": {
+    "message": "トークンは content script には渡しません。既定では chrome.storage.session に保存し、ブラウザ終了時に消去されます。"
+  },
+  "tokenSectionNote3": {
+    "message": "外部サーバーへの送信は行いません。通信先は api.github.com のみです。"
+  },
+  "tokenSectionNote4": {
+    "message": "認証に失敗した場合や、別アカウントでログインしている場合は、公開一覧への切り替えを自動では行わず、エラーとして表示します。"
+  },
+  "usageHeading": {
+    "message": "使い方"
+  },
+  "usageStep1": {
+    "message": "GitHub のプロフィールで「Repositories」タブを開きます（https://github.com/<owner>?tab=repositories）。"
+  },
+  "usageStep2": {
+    "message": "GitHub 標準の「Sort」メニューの Repo Sorter 項目を選びます。標準項目を選ぶと GitHub の一覧に戻ります。"
+  },
+  "usageStep3": {
+    "message": "検索欄・Type・Language・Visibility は GitHub 標準の操作をそのまま使えます。全取得データに適用されます。"
+  },
+  "usageStep4": {
+    "message": "並び順・絞り込みは owner ごとに保存され、次回訪問時に復元されます。"
+  },
+  "tokenRequired": {
+    "message": "トークンを入力してください。"
+  },
+  "validating": {
+    "message": "トークンを検証しています…"
+  },
+  "saveFailedBackground": {
+    "message": "保存できませんでした。拡張機能を読み込み直してください。"
+  },
+  "saveFailed": {
+    "message": "保存に失敗しました: $1"
+  },
+  "savedConfigured": {
+    "message": "保存しました: $1 として認証されています（$2）。"
+  },
+  "clearFailed": {
+    "message": "トークンを解除できませんでした。"
+  },
+  "cleared": {
+    "message": "トークンを解除しました（保存済みのコピーも削除）。公開リポジトリのみ取得します。"
+  },
+  "cacheClearFailed": {
+    "message": "キャッシュを消去できませんでした。"
+  },
+  "cacheCleared": {
+    "message": "メモリ上のキャッシュを消去しました。"
+  }
+}

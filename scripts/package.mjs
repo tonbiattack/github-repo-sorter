@@ -29,6 +29,8 @@ const REQUIRED = [
   'icons/icon-32.png',
   'icons/icon-48.png',
   'icons/icon-128.png',
+  '_locales/en/messages.json',
+  '_locales/ja/messages.json',
 ];
 
 function crc32(buffer) {
