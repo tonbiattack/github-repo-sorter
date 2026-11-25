@@ -29,9 +29,11 @@
 
 ### #7 ストア公開準備
 
-- `scripts/make-icons.mjs` で 16/32/48/128px のアイコンを依存なしで生成（`npm run icons`）。
+- `scripts/make-icons.mjs` で 16/32/48/128px のアイコンを依存なしで生成（`npm run icons`）。ストア要件どおり 128px アイコンの実体を 96×96＋16px 余白に調整した。
 - `scripts/package.mjs` で `release/github-repo-sorter-<version>.zip` を生成（`npm run package`）。`dist/` に実行時不要なファイルがあれば失敗する。
-- [PRIVACY.md](PRIVACY.md) に実装と一致するデータ取扱いを記載。[STORE-LISTING.md](STORE-LISTING.md) に掲載文案・権限理由・単一目的・提出チェックリストを用意。
+- [PRIVACY.md](PRIVACY.md) に実装と一致するデータ取扱いを記載。[STORE-LISTING.md](STORE-LISTING.md) に掲載文案・権限理由・単一目的・公式要件の根拠URLと確認日・ライセンス候補・提出チェックリストを用意。
+- `GRS_STORE_SHOTS=1 npm run check:browser` で 1280×800 のストア用スクリーンショットを生成（公開データのみ）。
+- GitHub の About（Description / Topics）を設定。Website はストア URL 公開まで空のまま。
 - README を英語主体に再構成し、日本語節を併記。
 - ライセンスは所有者の承認が必要なため未決定のまま。実際のストア提出・公開は未実施。
 
