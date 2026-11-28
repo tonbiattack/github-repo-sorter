@@ -75,6 +75,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     ...(sender.tab?.id !== undefined ? { tabId: sender.tab.id } : {}),
     ...(sender.frameId !== undefined ? { frameId: sender.frameId } : {}),
     ...(sender.url ?? sender.tab?.url ? { url: sender.url ?? sender.tab?.url } : {}),
+    ...(sender.origin ? { origin: sender.origin } : {}),
   };
 
   handler.handle(request, senderInfo).then(

@@ -247,6 +247,22 @@ describe('GitHub form integration', () => {
     expect(document.querySelector('#user-repositories-list')?.hasAttribute('data-grs-hidden')).toBe(false);
   });
 
+  it('sends the live page URL and stops fetching once the tab has navigated away', async () => {
+    app.start();
+    await settle();
+    expect(sendMessage).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'fetch',
+      pageUrl: 'https://github.com/owner?tab=repositories',
+    }));
+
+    // Turbo navigation to a repository page: same document, new URL.
+    history.replaceState(null, '', 'https://github.com/owner/some-repo');
+    sendMessage.mockClear();
+    (document.querySelector('[data-grs-action="refresh"]') as HTMLButtonElement).click();
+    await settle();
+    expect(sendMessage).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'fetch' }));
+  });
+
   it('keeps native list accessible when fetch fails and ignores a superseded response', async () => {
     let resolveFirst: ((value: unknown) => void) | undefined;
     sendMessage.mockImplementation(async (message: { type: string }) => {

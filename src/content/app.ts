@@ -326,6 +326,12 @@ export class SorterApp {
     return this.state !== null && this.state.settings.view !== 'standard';
   }
 
+  /** True while the tab still shows `owner`'s repository list. */
+  private matchesRoute(owner: string): boolean {
+    const route = parseRepoListUrl(window.location.href);
+    return route !== null && route.owner.toLowerCase() === owner.toLowerCase();
+  }
+
   private isIntercepting(): boolean {
     return this.isCustomActive() && this.state?.data !== null && !this.state?.loading && !this.state?.error;
   }
@@ -432,7 +438,9 @@ export class SorterApp {
     const state = this.state;
     if (!state) return;
     const version = this.settingsVersion;
-    const response = await this.send({ channel: CHANNEL, type: 'settings-get', owner: state.owner });
+    const response = await this.send({
+      channel: CHANNEL, type: 'settings-get', owner: state.owner, pageUrl: window.location.href,
+    });
     if (generation !== this.generation || !this.state || version !== this.settingsVersion) return;
     if (response?.ok && response.kind === 'settings') this.state.settings = sanitizeSettings(response.data);
     this.settingsLoaded = true;
@@ -457,14 +465,20 @@ export class SorterApp {
     this.settingsVersion += 1;
     const settings = { ...state.settings };
     const owner = state.owner;
+    // The URL is captured with the write: the queued message still describes
+    // this page even if the tab navigates before it is sent.
+    const pageUrl = window.location.href;
     this.settingsWrites = this.settingsWrites.then(async () => {
-      await this.send({ channel: CHANNEL, type: 'settings-set', owner, settings });
+      await this.send({ channel: CHANNEL, type: 'settings-set', owner, settings, pageUrl });
     });
   }
 
   private async fetch(options: { force?: boolean; authMode?: AuthMode } = {}): Promise<void> {
     const state = this.state;
     if (!state || state.settings.view === 'standard') return;
+    // A queued fetch can outlive a Turbo navigation; never request data for a
+    // page the tab no longer shows.
+    if (!this.matchesRoute(state.owner)) return;
     this.cancelRequest();
     const requestId = crypto.randomUUID();
     this.requestId = requestId;
@@ -475,7 +489,8 @@ export class SorterApp {
     this.render();
     const request: FetchRequest = {
       channel: CHANNEL, type: 'fetch', requestId, owner: state.owner,
-      force: options.force === true, ...(options.authMode ? { authMode: options.authMode } : {}),
+      force: options.force === true, pageUrl: window.location.href,
+      ...(options.authMode ? { authMode: options.authMode } : {}),
     };
     const response = await this.send(request);
     if (generation !== this.generation || this.requestId !== requestId || !this.state || !this.isCustomActive()) return;

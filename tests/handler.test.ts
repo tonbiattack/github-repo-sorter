@@ -9,8 +9,16 @@ import { CHANNEL } from '../src/shared/protocol';
 import type { FetchData, HandlerResponse, Request } from '../src/shared/protocol';
 import { makeRepo, memoryArea } from './helpers';
 
-const OWNER_PAGE = { tabId: 1, frameId: 0, url: 'https://github.com/owner?tab=repositories' };
-const OTHER_PAGE = { tabId: 2, frameId: 0, url: 'https://github.com/other?tab=repositories' };
+const LIST_URL = 'https://github.com/owner?tab=repositories';
+const OTHER_LIST_URL = 'https://github.com/other?tab=repositories';
+/**
+ * `url` is what Chrome committed for the document. After GitHub's Turbo
+ * navigation it still names the page the tab came from, so it is not the URL
+ * the handler may rely on.
+ */
+const OWNER_PAGE = { tabId: 1, frameId: 0, origin: 'https://github.com', url: 'https://github.com/owner' };
+const PREVIOUS_REPO_PAGE = { tabId: 1, frameId: 0, origin: 'https://github.com', url: 'https://github.com/owner/some-repo' };
+const OTHER_PAGE = { tabId: 2, frameId: 0, origin: 'https://github.com', url: OTHER_LIST_URL };
 const EXTENSION_PAGE = { url: 'chrome-extension://ext/options.html' };
 const TOKEN = 'ghp_token1234567890';
 
@@ -26,6 +34,7 @@ function fetchRequest(overrides: Record<string, unknown> = {}): Request {
     requestId: 'req-1',
     owner: 'owner',
     force: false,
+    pageUrl: LIST_URL,
     ...overrides,
   } as Request;
 }
@@ -69,19 +78,46 @@ function setup(options: {
 }
 
 describe('sender validation', () => {
-  it('rejects messages from pages that are not a repository list', async () => {
+  it('accepts a fetch after a Turbo navigation even when sender.url is stale', async () => {
+    // Regression: GitHub can reach the repositories tab without a new document,
+    // so Chrome still reports the repository page the tab came from. The live
+    // page URL in the message is what identifies the list.
+    const { handler, fetchAll } = setup();
+    const response = expectResponse(await handler.handle(fetchRequest(), PREVIOUS_REPO_PAGE));
+    expect(response).toMatchObject({ ok: true, kind: 'fetch' });
+    expect(fetchAll).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects messages whose reported page is not a repository list', async () => {
     const { handler, fetchAll } = setup();
     const response = expectResponse(
-      await handler.handle(fetchRequest(), { tabId: 1, frameId: 0, url: 'https://github.com/owner?tab=stars' }),
+      await handler.handle(fetchRequest({ pageUrl: 'https://github.com/owner?tab=stars' }), OWNER_PAGE),
     );
     expect(response.ok).toBe(false);
     if (!response.ok) expect(response.error.kind).toBe('forbidden');
     expect(fetchAll).not.toHaveBeenCalled();
   });
 
-  it('rejects a request whose owner does not match the page', async () => {
+  it('rejects a request whose owner does not match the reported page', async () => {
     const { handler, fetchAll } = setup();
-    const response = expectResponse(await handler.handle(fetchRequest(), OTHER_PAGE));
+    const response = expectResponse(
+      await handler.handle(fetchRequest({ pageUrl: OTHER_LIST_URL }), OTHER_PAGE),
+    );
+    expect(response.ok).toBe(false);
+    if (!response.ok) expect(response.error.kind).toBe('forbidden');
+    expect(fetchAll).not.toHaveBeenCalled();
+  });
+
+  it('rejects senders outside github.com', async () => {
+    const { handler, fetchAll } = setup();
+    const response = expectResponse(
+      await handler.handle(fetchRequest(), {
+        tabId: 1,
+        frameId: 0,
+        origin: 'https://evil.example',
+        url: LIST_URL,
+      }),
+    );
     expect(response.ok).toBe(false);
     if (!response.ok) expect(response.error.kind).toBe('forbidden');
     expect(fetchAll).not.toHaveBeenCalled();
@@ -248,6 +284,7 @@ describe('settings', () => {
           channel: CHANNEL,
           type: 'settings-set',
           owner: 'owner',
+          pageUrl: LIST_URL,
           settings: { sort: 'created', scope: 'forks', injected: true },
         },
         OWNER_PAGE,
@@ -262,7 +299,7 @@ describe('settings', () => {
 
     const get = expectResponse(
       await handler.handle(
-        { channel: CHANNEL, type: 'settings-get', owner: 'OWNER' },
+        { channel: CHANNEL, type: 'settings-get', owner: 'OWNER', pageUrl: LIST_URL },
         OWNER_PAGE,
       ),
     );
@@ -272,7 +309,7 @@ describe('settings', () => {
   it('rejects settings access from a different owner page', async () => {
     const { handler } = setup();
     const response = expectResponse(
-      await handler.handle({ channel: CHANNEL, type: 'settings-get', owner: 'other' }, OWNER_PAGE),
+      await handler.handle({ channel: CHANNEL, type: 'settings-get', owner: 'other', pageUrl: LIST_URL }, OWNER_PAGE),
     );
     expect(response.ok).toBe(false);
   });

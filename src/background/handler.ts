@@ -20,6 +20,8 @@ export interface SenderInfo {
   readonly tabId?: number;
   readonly frameId?: number;
   readonly url?: string;
+  /** `MessageSender.origin`; Chrome provides it for MV3 content scripts. */
+  readonly origin?: string;
 }
 
 export interface ProgressEvent {
@@ -64,15 +66,41 @@ export function toErrorInfo(error: unknown): FetchErrorInfo {
   return { kind: 'unknown', message: t('errUnexpectedResponse') };
 }
 
+const GITHUB_ORIGIN = 'https://github.com';
+
+function originOf(url: string | undefined): string | null {
+  if (!url) return null;
+  try {
+    return new URL(url).origin;
+  } catch {
+    return null;
+  }
+}
+
 /**
- * Validates that a message comes from the content script of the repository
- * list page for `owner`. Returns null when the sender is not acceptable.
+ * True when a message comes from the extension's own content script in the top
+ * frame of a github.com page.
+ *
+ * Only the origin is checked here. `sender.url` holds the URL Chrome *committed*
+ * for the document, so it still names the previous page after GitHub's Turbo
+ * navigation — for example a repository page when the repositories tab is
+ * reached without loading a new document. Keying validation off that URL
+ * rejected every fetch (and every retry) after such a navigation.
  */
-function contentSenderOwner(sender: SenderInfo): string | null {
-  if (!sender.url) return null;
-  if (sender.frameId !== undefined && sender.frameId !== 0) return null;
-  const route = parseRepoListUrl(sender.url);
-  return route ? route.owner : null;
+function isGithubContentSender(sender: SenderInfo): boolean {
+  if (sender.tabId === undefined) return false;
+  if (sender.frameId !== undefined && sender.frameId !== 0) return false;
+  if (sender.origin !== undefined) return sender.origin === GITHUB_ORIGIN;
+  return originOf(sender.url) === GITHUB_ORIGIN;
+}
+
+/**
+ * Owner of the repository list page the content script reports, or null when
+ * the sender is not a github.com tab or the reported page is not a list.
+ */
+function pageOwner(sender: SenderInfo, pageUrl: string): string | null {
+  if (!isGithubContentSender(sender)) return null;
+  return parseRepoListUrl(pageUrl)?.owner ?? null;
 }
 
 function isExtensionSender(sender: SenderInfo, extensionUrlPrefix: string): boolean {
@@ -107,7 +135,7 @@ export function createMessageHandler(deps: HandlerDeps): MessageHandler {
   }
 
   async function handleFetch(request: FetchRequest, sender: SenderInfo): Promise<HandlerResponse> {
-    const senderOwner = contentSenderOwner(sender);
+    const senderOwner = pageOwner(sender, request.pageUrl);
     if (senderOwner === null) {
       return fail({ kind: 'forbidden', message: t('forbiddenSender') });
     }
@@ -289,10 +317,12 @@ export function createMessageHandler(deps: HandlerDeps): MessageHandler {
 
   async function handle(request: Request, sender: SenderInfo): Promise<HandlerResponse | null> {
     const fromExtension = isExtensionSender(sender, deps.extensionUrlPrefix);
-    const senderOwner = contentSenderOwner(sender);
+    const fromGithubContent = isGithubContentSender(sender);
 
-    const requireContentOwner = (owner: string): boolean =>
-      senderOwner !== null && senderOwner.toLowerCase() === owner.toLowerCase();
+    const requireContentOwner = (owner: string, pageUrl: string): boolean => {
+      const senderOwner = pageOwner(sender, pageUrl);
+      return senderOwner !== null && senderOwner.toLowerCase() === owner.toLowerCase();
+    };
     const requireExtension = (): boolean => fromExtension;
 
     switch (request.type) {
@@ -305,7 +335,7 @@ export function createMessageHandler(deps: HandlerDeps): MessageHandler {
       }
 
       case 'settings-get': {
-        if (!requireContentOwner(request.owner)) {
+        if (!requireContentOwner(request.owner, request.pageUrl)) {
           return fail({ kind: 'forbidden', message: t('forbiddenSettingsRead') });
         }
         const settings = await deps.settings.read(request.owner);
@@ -313,7 +343,7 @@ export function createMessageHandler(deps: HandlerDeps): MessageHandler {
       }
 
       case 'settings-set': {
-        if (!requireContentOwner(request.owner)) {
+        if (!requireContentOwner(request.owner, request.pageUrl)) {
           return fail({ kind: 'forbidden', message: t('forbiddenSettingsWrite') });
         }
         return handleSettingsSet(request.owner, request.settings);
@@ -349,7 +379,7 @@ export function createMessageHandler(deps: HandlerDeps): MessageHandler {
       }
 
       case 'open-options': {
-        if (senderOwner === null) {
+        if (!fromGithubContent) {
           return fail({ kind: 'forbidden', message: t('forbiddenSender') });
         }
         deps.openOptions?.();
