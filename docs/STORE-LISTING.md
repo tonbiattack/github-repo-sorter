@@ -2,7 +2,7 @@
 
 ストア提出用の文案と画像の要件をまとめたもの。実際の提出・公開は所有者の承認後に行う。
 
-最終更新: 2026-11-25（公式要件の確認日: 2026-11-25）
+最終更新: 2026-11-28（公式要件の確認日: 2026-11-25）
 
 ## 名称
 
@@ -263,7 +263,7 @@ treating creation, forks, and pushes as the same kind of activity.
 - [x] ZIP 直下に `manifest.json`
 - [x] `_locales/en` / `_locales/ja` とアイコン 4 サイズを同梱
 - [x] 実行時不要なファイル（`src`、テスト、スクリーンショット、`node_modules`）が無い
-- [x] `manifest.json` の `version` と `package.json` が一致（0.3.0）
+- [x] `manifest.json` の `version` と `package.json` が一致（0.3.1）
 - [x] `default_locale: en` と `__MSG_*__` が解決されることを実ブラウザで確認
 
 ### 審査リスク
@@ -276,9 +276,29 @@ treating creation, forks, and pushes as the same kind of activity.
 ### 所有者が行う操作
 
 - [x] ライセンスの採択（MIT で確定）
-- [ ] ストアの掲載文・画像の最終確認
-- [ ] ストアへのアップロード・審査提出・公開
-- [ ] 公開後のストア URL を README と About に追記
+- [x] ストアの掲載文・画像の最終確認（2026-11-25）
+- [x] ストアへのアップロード・審査提出・公開（0.3.0、2026-11-25）
+- [x] 公開後のストア URL を README と About に追記（2026-11-28）
+
+## 更新 0.3.1（2026-11-28）
+
+- 対象: `release/github-repo-sorter-0.3.1.zip`
+- 内容: GitHub のタブ切替（Turbo）後に「送信元のページを検証できませんでした」となり、再取得も失敗する問題の修正（#22）。権限・データ申告・プライバシーポリシーに変更なし。
+- ストア URL: <https://chromewebstore.google.com/detail/github-repo-sorter/kdfckoloaojcpjpabbcjlbiekiafdmom>
+
+「What's new」欄の文案:
+
+日本語:
+
+```
+GitHub のタブ移動や Fork のあとに「送信元のページを検証できませんでした」と表示され、再取得も失敗する問題を修正しました。
+```
+
+英語:
+
+```
+Fixed an error after GitHub's in-page tab navigation or a fork: "Could not verify the page that sent the request", including the Retry button.
+```
 
 ## 未解決事項
 

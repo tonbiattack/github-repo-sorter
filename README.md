@@ -38,7 +38,11 @@ The order lives in GitHub's own Sort menu. The list above is sorted by
 
 ## Install
 
-The extension is not on the Chrome Web Store yet, so install it from source:
+Install it from the Chrome Web Store:
+
+<https://chromewebstore.google.com/detail/github-repo-sorter/kdfckoloaojcpjpabbcjlbiekiafdmom>
+
+To run the development build instead:
 
 1. Download or clone this repository.
 2. Run `npm ci` and `npm run build`.
@@ -49,9 +53,6 @@ Then open `https://github.com/<owner>?tab=repositories`.
 
 `dist/` is a build artifact. After changing source, run `npm run build` (or
 `npm run watch`) and press the reload button on `chrome://extensions`.
-
-> A store link will be added here once the listing is published. No unreleased
-> link or badge is shown until then.
 
 ## Usage
 
@@ -242,7 +243,11 @@ Visibility は GitHub のものをそのまま使います。ローカルサー�
 
 ### 導入
 
-ストア未公開のため、現時点ではソースから導入します。
+Chrome ウェブストアからインストールできます。
+
+<https://chromewebstore.google.com/detail/github-repo-sorter/kdfckoloaojcpjpabbcjlbiekiafdmom>
+
+開発版をソースから動かす場合:
 
 1. このリポジトリを取得します。
 2. `npm ci` と `npm run build` を実行します。
@@ -250,7 +255,6 @@ Visibility は GitHub のものをそのまま使います。ローカルサー�
 4. 「パッケージ化されていない拡張機能を読み込む」で `dist/` を選択します。
 
 その後 `https://github.com/<owner>?tab=repositories` を開きます。
-ストア公開後はこの節に正式なストア URL を追加します（未公開リンクは載せません）。
 
 ### 使い方
 
