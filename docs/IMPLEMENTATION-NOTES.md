@@ -3,6 +3,34 @@
 対象仕様: [SPEC.md](SPEC.md)（v0.4）
 対象 Issue: #1〜#7、#10、#12〜#14、#17〜#19
 
+## 修正: Turbo ナビゲーション後の「送信元のページを検証できませんでした」(2026-11-28)
+
+### 症状
+
+- リポジトリ一覧で「取得できませんでした: 送信元のページを検証できませんでした。 GitHub標準一覧を表示中。」が出る。同じ画面で「再取得」を押しても同じ結果になる。
+- Fork したあとなど、リポジトリページから「Repositories」タブへ戻った直後に頻発する。リロードすると直る。
+
+### 原因
+
+- background が `sender.url` を `https://github.com/{owner}?tab=repositories` と完全一致で検証していた。
+- Chrome の `MessageSender.url` はその文書で**コミットされた URL** を返す。GitHub は Turbo（同一文書内の `pushState`）でタブを切り替えるため、リポジトリページから一覧へ移っても `sender.url` は前のページのまま残る。
+- その結果、一覧の URL も owner も正しいのに送信元検証だけが失敗し、新しい文書を読み込むまで「再取得」も失敗し続けた。
+
+### 設計の変更
+
+- 信頼の基準を「コミット済み URL との一致」から「送信元オリジン + コンテンツスクリプトが申告する現在のページ URL」へ変えた。
+  - `fetch` / `settings-get` / `settings-set` に `pageUrl` を必須で載せ、`parseRequest` がリポジトリ一覧 URL かを検証する。
+  - background は `sender.origin === https://github.com`、`tabId` の存在、`frameId === 0` を確認し、owner は `pageUrl` とリクエストで照合する。`sender.url` はオリジンの代替にのみ使う。
+  - ページの JavaScript から `chrome.runtime.sendMessage` は呼べないため、申告 URL は拡張自身のコンテンツスクリプト由来になる。URL の構造検証は「一覧ページ以外では取得しない」という不変条件の維持が目的。
+- content script 側も、送信直前に `location.href` が同じ owner の一覧かを再確認し、Turbo 遷移をまたいだ古い state ではリクエストしない。
+
+### 回帰テスト
+
+- `tests/handler.test.ts`: `sender.url` が前のページ（`/owner/some-repo`）でも、`pageUrl` が一覧なら取得できる。
+- `tests/app.test.ts`: `pageUrl` を送ること、URL がリポジトリページに変わったら再取得しないこと。
+- `scripts/browser-check.mjs`: プロフィール →「Repositories」タブを同一文書遷移で開き、取得が失敗しないこと。遷移が新しい文書になった場合はテストとして無効と判定する。
+- 修正前の `dist` で同じ実ブラウザ検証を実行し、「Could not verify the page that sent the request.」で失敗することを確認済み（2026-11-28）。
+
 ## Issue #17〜#19（v0.4）
 
 ### #17 UI の英語・日本語自動切替（i18n）
@@ -112,8 +140,9 @@
 ## セキュリティ上の判断
 
 - メッセージは `channel` 定数を持たないものを無視。`type` ごとにフィールドを検証し、新しいオブジェクトを組み立て直す。
-- 送信元は `sender.url` が `https://github.com/{owner}?tab=repositories` と一致し、`frameId === 0` の場合のみ許可。
-  オーナー名はリクエストとページの双方で照合する。
+- 送信元は `sender.origin` が `https://github.com`、`frameId === 0`、`tabId` ありの場合のみ許可し、
+  オーナー名はコンテンツスクリプトが申告する `pageUrl` とリクエストの双方で照合する
+  （2026-11-28 に `sender.url` の一致検証から変更。理由は本メモ冒頭を参照）。
 - 認証操作（`auth-set` / `auth-clear` / `cache-clear` / `auth-status`）は拡張ページからのみ許可。
 - API の `next` URL は `api.github.com` と同一オリジンのみ追跡。それ以外は取得を停止して部分取得扱いにする。
 - `html_url` が `https://github.com/` で始まらないオブジェクトは描画しない。
@@ -124,7 +153,7 @@
 
 ### ユニットテスト
 
-`npm test` — 163 テスト / 11 ファイル。
+`npm test` — 167 テスト / 11 ファイル。
 
 - ソート: 受入シナリオ（B, A, C）、欠損・同値・Fork順・各ソートモード、入力非破壊、500件 < 100ms
 - フィルタ・ページング: 全件/Fork/非Fork、Type（Archived/Mirror/Template）、Language スラッグ正規化、Visibility、名前・説明の部分一致、AND、30件/ページ、範囲クランプ
@@ -143,6 +172,7 @@
 - 316 件・4 ページを取得し、Node 側で独立に計算した期待順と画面の 30 件が一致
 - 2ページ目が 31–60 件、検索が全件に対して適用され、Fork順・標準表示・復帰が動作
 - リロード後も owner 別設定が復元される
+- プロフィール →「Repositories」タブの同一文書（Turbo）遷移でも取得が失敗しない（2026-11-28 追加）
 - ライト `rgb(255, 255, 255)` / ダーク `rgb(13, 17, 23)` で背景が切り替わる
 - 認証あり: 699 件（Private バッジあり）、解除後 316 件。トークンはページのストレージに現れない
 

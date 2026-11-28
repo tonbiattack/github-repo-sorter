@@ -34,7 +34,20 @@ export type HandlerResponse =
   | { readonly ok: true; readonly kind: 'operation'; readonly data: OperationData }
   | { readonly ok: false; readonly error: FetchErrorInfo };
 
-export interface FetchRequest {
+/**
+ * Page URL reported by the content script for the document it is running in.
+ *
+ * Chrome resolves `sender.url` from the URL that was *committed* for the
+ * document. GitHub navigates with Turbo (same-document history updates), so
+ * after moving from a repository page to the repositories tab that URL still
+ * names the previous page. The live URL therefore travels in the message and
+ * is what the background validates.
+ */
+export interface PageLocation {
+  readonly pageUrl: string;
+}
+
+export interface FetchRequest extends PageLocation {
   readonly channel: typeof CHANNEL;
   readonly type: 'fetch';
   readonly requestId: string;
@@ -50,13 +63,13 @@ export interface CancelRequest {
   readonly requestId: string;
 }
 
-export interface SettingsGetRequest {
+export interface SettingsGetRequest extends PageLocation {
   readonly channel: typeof CHANNEL;
   readonly type: 'settings-get';
   readonly owner: string;
 }
 
-export interface SettingsSetRequest {
+export interface SettingsSetRequest extends PageLocation {
   readonly channel: typeof CHANNEL;
   readonly type: 'settings-set';
   readonly owner: string;
@@ -209,6 +222,17 @@ function isAuthMode(value: unknown): value is AuthMode {
   return value === 'public' || value === 'authenticated';
 }
 
+const MAX_PAGE_URL_LENGTH = 2048;
+
+/** True for the live repository list URL a content script is allowed to report. */
+function isRepoListPageUrl(value: unknown): value is string {
+  return (
+    typeof value === 'string' &&
+    value.length <= MAX_PAGE_URL_LENGTH &&
+    parseRepoListUrl(value) !== null
+  );
+}
+
 /**
  * Validates an untrusted runtime message.
  * Returns a freshly built object (no caller-owned references are reused).
@@ -223,6 +247,7 @@ export function parseRequest(input: unknown): Request | null {
       if (typeof owner !== 'string' || !isValidOwner(owner)) return null;
       if (!isValidRequestId(input.requestId)) return null;
       if (typeof input.force !== 'boolean') return null;
+      if (!isRepoListPageUrl(input.pageUrl)) return null;
       const authMode = isAuthMode(input.authMode) ? input.authMode : undefined;
       return {
         channel: CHANNEL,
@@ -230,6 +255,7 @@ export function parseRequest(input: unknown): Request | null {
         requestId: input.requestId,
         owner,
         force: input.force,
+        pageUrl: input.pageUrl,
         ...(authMode ? { authMode } : {}),
       };
     }
@@ -240,16 +266,19 @@ export function parseRequest(input: unknown): Request | null {
     case 'settings-get': {
       const owner = input.owner;
       if (typeof owner !== 'string' || !isValidOwner(owner)) return null;
-      return { channel: CHANNEL, type: 'settings-get', owner };
+      if (!isRepoListPageUrl(input.pageUrl)) return null;
+      return { channel: CHANNEL, type: 'settings-get', owner, pageUrl: input.pageUrl };
     }
     case 'settings-set': {
       const owner = input.owner;
       if (typeof owner !== 'string' || !isValidOwner(owner)) return null;
       if (!isRecord(input.settings)) return null;
+      if (!isRepoListPageUrl(input.pageUrl)) return null;
       return {
         channel: CHANNEL,
         type: 'settings-set',
         owner,
+        pageUrl: input.pageUrl,
         settings: {
           sort: input.settings.sort,
           scope: input.settings.scope,

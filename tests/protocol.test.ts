@@ -57,6 +57,8 @@ describe('isValidOwner', () => {
 });
 
 describe('parseRequest', () => {
+  const PAGE_URL = 'https://github.com/owner?tab=repositories';
+
   it('accepts a well-formed fetch request', () => {
     const request = parseRequest({
       channel: CHANNEL,
@@ -64,6 +66,7 @@ describe('parseRequest', () => {
       requestId: 'req-1',
       owner: 'owner',
       force: false,
+      pageUrl: PAGE_URL,
     });
     expect(request).toEqual({
       channel: CHANNEL,
@@ -71,6 +74,7 @@ describe('parseRequest', () => {
       requestId: 'req-1',
       owner: 'owner',
       force: false,
+      pageUrl: PAGE_URL,
     });
   });
 
@@ -81,6 +85,7 @@ describe('parseRequest', () => {
       requestId: 'req-1',
       owner: 'owner',
       force: true,
+      pageUrl: PAGE_URL,
       authMode: 'public',
     });
     expect(withOverride).toMatchObject({ authMode: 'public', force: true });
@@ -91,16 +96,39 @@ describe('parseRequest', () => {
       requestId: 'req-1',
       owner: 'owner',
       force: false,
+      pageUrl: PAGE_URL,
       authMode: 'root',
     });
     expect(withJunk).not.toHaveProperty('authMode');
   });
 
+  it('requires the live page URL of a repository list', () => {
+    // Missing pageUrl: the message does not say which page it came from.
+    expect(
+      parseRequest({ channel: CHANNEL, type: 'fetch', requestId: 'r', owner: 'owner', force: false }),
+    ).toBeNull();
+    expect(
+      parseRequest({
+        channel: CHANNEL, type: 'fetch', requestId: 'r', owner: 'owner', force: false,
+        pageUrl: 'https://github.com/owner?tab=stars',
+      }),
+    ).toBeNull();
+    expect(
+      parseRequest({
+        channel: CHANNEL, type: 'fetch', requestId: 'r', owner: 'owner', force: false,
+        pageUrl: `https://github.com/owner?tab=repositories&x=${'a'.repeat(2048)}`,
+      }),
+    ).toBeNull();
+    expect(
+      parseRequest({ channel: CHANNEL, type: 'settings-get', owner: 'owner' }),
+    ).toBeNull();
+  });
+
   it('rejects foreign channels, bad owners and malformed fields', () => {
-    expect(parseRequest({ channel: 'other', type: 'fetch', requestId: 'r', owner: 'owner', force: false })).toBeNull();
-    expect(parseRequest({ channel: CHANNEL, type: 'fetch', requestId: 'r', owner: 'bad owner', force: false })).toBeNull();
-    expect(parseRequest({ channel: CHANNEL, type: 'fetch', owner: 'owner', force: false })).toBeNull();
-    expect(parseRequest({ channel: CHANNEL, type: 'fetch', requestId: 'r', owner: 'owner', force: 'yes' })).toBeNull();
+    expect(parseRequest({ channel: 'other', type: 'fetch', requestId: 'r', owner: 'owner', force: false, pageUrl: PAGE_URL })).toBeNull();
+    expect(parseRequest({ channel: CHANNEL, type: 'fetch', requestId: 'r', owner: 'bad owner', force: false, pageUrl: PAGE_URL })).toBeNull();
+    expect(parseRequest({ channel: CHANNEL, type: 'fetch', owner: 'owner', force: false, pageUrl: PAGE_URL })).toBeNull();
+    expect(parseRequest({ channel: CHANNEL, type: 'fetch', requestId: 'r', owner: 'owner', force: 'yes', pageUrl: PAGE_URL })).toBeNull();
     expect(parseRequest({ channel: CHANNEL, type: 'cancel' })).toBeNull();
     expect(parseRequest(null)).toBeNull();
     expect(parseRequest('hello')).toBeNull();
@@ -112,19 +140,21 @@ describe('parseRequest', () => {
       channel: CHANNEL,
       type: 'settings-set',
       owner: 'owner',
+      pageUrl: PAGE_URL,
       settings: { sort: 'created', scope: 'forks', injected: 'x' },
     });
     expect(request).toEqual({
       channel: CHANNEL,
       type: 'settings-set',
       owner: 'owner',
+      pageUrl: PAGE_URL,
       settings: { sort: 'created', scope: 'forks' },
     });
-    expect(parseRequest({ channel: CHANNEL, type: 'settings-set', owner: 'owner', settings: 'x' })).toBeNull();
+    expect(parseRequest({ channel: CHANNEL, type: 'settings-set', owner: 'owner', pageUrl: PAGE_URL, settings: 'x' })).toBeNull();
   });
 
   it('retains the selected standard view in settings messages', () => {
-    expect(parseRequest({ channel: CHANNEL, type: 'settings-set', owner: 'owner', settings: { sort: 'activity', scope: 'all', view: 'standard' } })).toMatchObject({ settings: { view: 'standard' } });
+    expect(parseRequest({ channel: CHANNEL, type: 'settings-set', owner: 'owner', pageUrl: PAGE_URL, settings: { sort: 'activity', scope: 'all', view: 'standard' } })).toMatchObject({ settings: { view: 'standard' } });
   });
 
   it('validates token length for auth-set', () => {

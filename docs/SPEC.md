@@ -25,7 +25,7 @@ REST API の created_at、pushed_at、updated_at、fork、id を使用。Fork日
 公開一覧は GET /users/{owner}/repos?type=owner&per_page=100、本人の非公開一覧は認証済み GET /user/repos?affiliation=owner&visibility=all&per_page=100 を使用し、owner を照合。Link の next を辿り全ページ取得後に統合ソートする。IDで重複排除。無限ループ防止、キャンセル、429/403のレート制限とRetry-After/リセット時刻への対応。部分データは全件と誤認させない。5分TTLのメモリキャッシュを owner・認証コンテキスト別に分離し、手動更新で無効化。非公開データは永続キャッシュしない。
 
 ## 構成・セキュリティ
-TypeScript + MV3 content script + service worker + 素のDOM/CSSを初期案とする。github.com と api.github.com のみに権限を限定。通信はservice workerで行い、受信メッセージの送信元・owner・URLを検証。HTMLはtextContent等で安全に描画。外部サーバー・分析送信・GitHub Cookie流用・トークンのソース埋め込み禁止。非公開対応は利用者が設定する読み取り専用の最小権限PATを候補とし、実装前に対象APIの権限を確認。トークンはcontent scriptへ渡さず、原則セッション保存、解除時消去。認証失敗を公開一覧への黙った切替で隠さない。
+TypeScript + MV3 content script + service worker + 素のDOM/CSSを初期案とする。github.com と api.github.com のみに権限を限定。通信はservice workerで行い、受信メッセージは送信元オリジン（`https://github.com` の最上位フレーム）と、コンテンツスクリプトが申告する現在のページURL・ownerで検証する。`sender.url` は文書のコミット時URLのため、Turbo遷移後は前のページを指す。これを送信元の同一性判定に使わない。HTMLはtextContent等で安全に描画。外部サーバー・分析送信・GitHub Cookie流用・トークンのソース埋め込み禁止。非公開対応は利用者が設定する読み取り専用の最小権限PATを候補とし、実装前に対象APIの権限を確認。トークンはcontent scriptへ渡さず、原則セッション保存、解除時消去。認証失敗を公開一覧への黙った切替で隠さない。
 GitHubのTurbo遷移やDOM差し替えを考慮し、冪等なUI挿入・解除と古い取得結果の破棄を実装する。
 
 ## 配布

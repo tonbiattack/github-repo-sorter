@@ -306,6 +306,30 @@ async function main() {
     await clickSelector(cdp, '#type-options label:has(input[name="type"][value=""])');
     await waitFor(async () => { const s = await snapshot(); return s.type === '' && s.status.includes(L.shown(expected.length)) && s; }, 'clear Type');
 
+    // Regression: GitHub reaches the repositories tab with a same-document
+    // (Turbo) navigation, so Chrome still reports the URL that was committed for
+    // the document (the profile page) as `sender.url`. Validating that URL
+    // rejected the fetch right after a fork/repository visit and kept rejecting
+    // every retry until a full reload. The live page URL must decide instead.
+    await cdp.send('Page.navigate', { url: `https://github.com/${encodeURIComponent(owner)}` });
+    await waitFor(async () => (await cdp.evaluate('location.pathname')) === `/${owner}`, 'profile overview');
+    const tabSelector = `a[href="/${owner}?tab=repositories"]`;
+    try {
+      await waitFor(async () => cdp.evaluate(`!!document.querySelector(${JSON.stringify(tabSelector)})`), 'repositories tab link', 10000);
+    } catch (error) {
+      const diag = await cdp.evaluate(`({url: location.href, title: document.title, ready: document.readyState, navs: [...document.querySelectorAll('header nav a')].map(a => a.getAttribute('href')).slice(0, 10), text: document.body ? document.body.innerText.slice(0, 200) : null})`);
+      throw new Error(`${error.message} ${JSON.stringify(diag)}`);
+    }
+    const committedAt = await cdp.evaluate('performance.timeOrigin');
+    await clickSelector(cdp, tabSelector);
+    const turbo = await waitFor(async () => {
+      const s = await snapshot();
+      if (s.status.includes(L.loadFailed)) throw new Error(`fetch rejected after a Turbo navigation: ${s.status}`);
+      return s.url.includes('tab=repositories') && s.rows && s;
+    }, 'repositories tab after Turbo navigation');
+    assert(committedAt === (await cdp.evaluate('performance.timeOrigin')), 'the navigation created a new document; the Turbo regression was not exercised');
+    assert(turbo.nativeHidden && turbo.menu === 5, `sorter did not take over after a Turbo navigation: ${JSON.stringify({ menu: turbo.menu, hidden: turbo.nativeHidden })}`);
+
     // Never retain authenticated screenshots under the public screenshot names.
     if (authWorker) for (const mode of ['light', 'dark']) await rm(path.join(dist, `browser-check-${mode}.png`), { force: true });
     let authenticatedVerified = false;
